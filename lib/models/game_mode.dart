@@ -25,13 +25,13 @@ enum GameMode {
     Color(0xFF7A4DE0),
     Color(0xFF3A2A8A),
   ]),
-  neverHaveIEver('never_have_i_ever', Icons.back_hand_outlined, [
-    Color(0xFFD4604E),
-    Color(0xFF7A2B45),
-  ]),
   thisOrThat('this_or_that', Icons.shuffle_rounded, [
     Color(0xFF3E86D8),
     Color(0xFF1F3470),
+  ]),
+  neverHaveIEver('never_have_i_ever', Icons.back_hand_outlined, [
+    Color(0xFFD4604E),
+    Color(0xFF7A2B45),
   ]),
   wouldYouRather('would_you_rather', Icons.style_rounded, [
     Color(0xFF2BA39B),
