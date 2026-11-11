@@ -37,6 +37,7 @@ class GlassCard extends StatelessWidget {
     this.radius = 24,
     this.gradient,
     this.borderGradient = _defaultBorder,
+    this.strokeWidth = borderWidth,
   });
 
   final Widget child;
@@ -46,8 +47,11 @@ class GlassCard extends StatelessWidget {
   /// Overrides the default dark glass fill.
   final Gradient? gradient;
 
-  /// Colors of the 1px border.
+  /// Colors of the border.
   final Gradient borderGradient;
+
+  /// Border thickness.
+  final double strokeWidth;
 
   static const borderWidth = 1.2;
   static final _glassBase = const Color(0xFF140B2B).withValues(alpha: 0.6);
@@ -60,11 +64,11 @@ class GlassCard extends StatelessWidget {
         gradient: borderGradient,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(borderWidth),
+        padding: EdgeInsets.all(strokeWidth),
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius - borderWidth),
+            borderRadius: BorderRadius.circular(radius - strokeWidth),
             gradient:
                 gradient ??
                 LinearGradient(

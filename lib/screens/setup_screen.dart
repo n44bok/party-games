@@ -4,6 +4,7 @@ import '../data/strings.dart';
 import '../models/game_mode.dart';
 import '../widgets/category_chips.dart';
 import '../widgets/glass.dart';
+import '../widgets/glass_blob.dart';
 import '../widgets/gradient_background.dart';
 import 'game_screen.dart';
 
@@ -278,7 +279,7 @@ class _NameField extends StatelessWidget {
   }
 }
 
-/// Mode icon inside an organic glass "blob" with a soft purple glow.
+/// Mode icon on a glass blob, filled with the mode's own gradient.
 class _ModeBlob extends StatelessWidget {
   const _ModeBlob({required this.mode});
 
@@ -286,34 +287,7 @@ class _ModeBlob extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 168,
-      height: 154,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.elliptical(92, 80),
-          topRight: Radius.elliptical(64, 92),
-          bottomRight: Radius.elliptical(88, 68),
-          bottomLeft: Radius.elliptical(68, 88),
-        ),
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFB07CFF).withValues(alpha: 0.7),
-            const Color(0xFF5B3A98).withValues(alpha: 0.55),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8A5CFF).withValues(alpha: 0.45),
-            blurRadius: 32,
-          ),
-        ],
-      ),
-      // The icon is filled with the mode's own warm-to-saturated gradient.
+    return GlassBlob(
       child: ShaderMask(
         blendMode: BlendMode.srcIn,
         shaderCallback: (rect) => LinearGradient(

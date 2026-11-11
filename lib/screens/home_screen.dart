@@ -5,6 +5,7 @@ import '../models/game_mode.dart';
 import '../widgets/glass.dart';
 import '../widgets/rules_popover.dart';
 import '../widgets/gradient_background.dart';
+import 'premium_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
@@ -76,9 +77,6 @@ class _GamesTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Strings.of(context);
     final theme = Theme.of(context);
-    void comingSoon() =>
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(s['coming_soon'])));
 
     final titleStyle = theme.textTheme.displayMedium?.copyWith(
       fontWeight: FontWeight.w800,
@@ -95,8 +93,10 @@ class _GamesTab extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GlassIconButton(
-                tooltip: 'Premium',
-                onPressed: comingSoon,
+                tooltip: s['premium_title'],
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                ),
                 icon: Icons.workspace_premium,
                 iconColor: const Color(0xFFFFC857),
               ),
