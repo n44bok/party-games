@@ -105,25 +105,30 @@ class _GamesTab extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Stack(
-            children: [
-              const Positioned(right: -30, top: -30, child: _Cups()),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(words.first, style: titleStyle),
-                  ShaderMask(
-                    shaderCallback: (rect) => brandGradient.createShader(rect),
-                    child: Text(
-                      words.skip(1).join(' '),
-                      style: titleStyle?.copyWith(color: Colors.white),
+          SizedBox(
+            width: double.infinity,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Positioned(right: -50, top: -24, child: _Cups()),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(words.first, style: titleStyle),
+                    ShaderMask(
+                      shaderCallback: (rect) =>
+                          brandGradient.createShader(rect),
+                      child: Text(
+                        words.skip(1).join(' '),
+                        style: titleStyle?.copyWith(color: Colors.white),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(s['subtitle'], style: theme.textTheme.titleMedium),
-                ],
-              ),
-            ],
+                    const SizedBox(height: 10),
+                    Text(s['subtitle'], style: theme.textTheme.titleMedium),
+                  ],
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           Expanded(
@@ -162,8 +167,8 @@ class _Cups extends StatelessWidget {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: SizedBox(
-        width: 230,
-        height: 160,
+        width: 290,
+        height: 200,
         child: ShaderMask(
           blendMode: BlendMode.dstIn,
           shaderCallback: (rect) => const RadialGradient(
@@ -197,38 +202,85 @@ class _ModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Ink paints on the nearest Material; without this one it would paint on
     // the Scaffold's, i.e. underneath GradientBackground, and be invisible.
-    return Material(
-      type: MaterialType.transparency,
-      child: Ink(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [for (final c in mode.colors) c.withValues(alpha: 0.6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    // The glow lives outside Ink: Ink clips its decoration to its own bounds,
+    // which would cut a shadow into a rectangle.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: mode.colors.first.withValues(alpha: 0.3),
+            blurRadius: 24,
+            spreadRadius: -4,
           ),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: mode.colors,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22),
+            onTap: onTap,
+            child: Stack(
               children: [
-                Icon(mode.icon, size: 38, color: Colors.white),
-                const SizedBox(height: 6),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    height: 1.15,
-                    fontWeight: FontWeight.w700,
+                // Glossy highlight along the top edge.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: 56,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(22),
+                        ),
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.22),
+                            Colors.white.withValues(alpha: 0),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(mode.icon, size: 38, color: Colors.white),
+                        const SizedBox(height: 6),
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            height: 1.15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

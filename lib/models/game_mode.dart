@@ -18,28 +18,28 @@ class Prompt {
 
 enum GameMode {
   truthOrDare('truth_or_dare', Icons.local_fire_department, [
-    Color(0xFFFF6B8B),
-    Color(0xFFE0366F),
+    Color(0xFFE8548F),
+    Color(0xFF8A2C6B),
   ]),
   mostLikely('most_likely', Icons.help_outline_rounded, [
-    Color(0xFFA06CF5),
-    Color(0xFF6C3FD8),
+    Color(0xFF7A4DE0),
+    Color(0xFF3A2A8A),
   ]),
   neverHaveIEver('never_have_i_ever', Icons.back_hand_outlined, [
-    Color(0xFFFFB531),
-    Color(0xFFF28A0C),
+    Color(0xFFD4604E),
+    Color(0xFF7A2B45),
   ]),
   thisOrThat('this_or_that', Icons.shuffle_rounded, [
-    Color(0xFF5BA8FF),
-    Color(0xFF3566E0),
+    Color(0xFF3E86D8),
+    Color(0xFF1F3470),
   ]),
   wouldYouRather('would_you_rather', Icons.style_rounded, [
-    Color(0xFF3FC98B),
-    Color(0xFF1E9E63),
+    Color(0xFF2BA39B),
+    Color(0xFF14505E),
   ]),
   randomChallenge('random_challenge', Icons.casino_rounded, [
-    Color(0xFFB79CF7),
-    Color(0xFF8A6AE6),
+    Color(0xFFE0A15C),
+    Color(0xFF8C5A3C),
   ]);
 
   const GameMode(this.id, this.icon, this.colors);
