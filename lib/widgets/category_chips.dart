@@ -23,12 +23,17 @@ class CategoryChips extends StatelessWidget {
       selected: selected == value,
       onTap: () => onSelected(value),
     );
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    final items = <Widget>[
+      pill(s['all'], null),
+      for (final c in Category.values) pill(s[c.id], c),
+    ];
+    // One evenly spread row, like the design.
+    return Row(
       children: [
-        pill(s['all'], null),
-        for (final c in Category.values) pill(s[c.id], c),
+        for (var i = 0; i < items.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(child: items[i]),
+        ],
       ],
     );
   }
@@ -55,7 +60,7 @@ class _Pill extends StatelessWidget {
         onTap: onTap,
         child: Container(
           height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
@@ -77,12 +82,15 @@ class _Pill extends StatelessWidget {
                   ]
                 : null,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
             ),
           ),
         ),

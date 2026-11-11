@@ -165,15 +165,15 @@ class _ModeBlob extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 128,
-      height: 118,
+      width: 168,
+      height: 154,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.elliptical(70, 62),
-          topRight: Radius.elliptical(48, 70),
-          bottomRight: Radius.elliptical(66, 52),
-          bottomLeft: Radius.elliptical(52, 66),
+          topLeft: Radius.elliptical(92, 80),
+          topRight: Radius.elliptical(64, 92),
+          bottomRight: Radius.elliptical(88, 68),
+          bottomLeft: Radius.elliptical(68, 88),
         ),
         gradient: LinearGradient(
           colors: [
@@ -195,11 +195,13 @@ class _ModeBlob extends StatelessWidget {
       child: ShaderMask(
         blendMode: BlendMode.srcIn,
         shaderCallback: (rect) => LinearGradient(
-          colors: [mode.tint, mode.glow],
+          colors: mode == GameMode.truthOrDare
+              ? const [Color(0xFFFFB074), Color(0xFFFF4F92)] // warm flame
+              : [mode.tint, mode.glow],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ).createShader(rect),
-        child: Icon(mode.icon, size: 72, color: Colors.white),
+        child: Icon(mode.icon, size: 96, color: Colors.white),
       ),
     );
   }

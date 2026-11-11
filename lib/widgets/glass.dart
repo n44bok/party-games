@@ -25,7 +25,7 @@ class GlassCard extends StatelessWidget {
   final Gradient? gradient;
 
   static const _border = 1.2;
-  static final _glassBase = const Color(0xFF140B2B).withValues(alpha: 0.45);
+  static final _glassBase = const Color(0xFF140B2B).withValues(alpha: 0.6);
 
   @override
   Widget build(BuildContext context) {
@@ -54,11 +54,11 @@ class GlassCard extends StatelessWidget {
                   // Dark tinted glass with a faint light sheen.
                   colors: [
                     Color.alphaBlend(
-                      Colors.white.withValues(alpha: 0.08),
+                      Colors.white.withValues(alpha: 0.05),
                       _glassBase,
                     ),
                     Color.alphaBlend(
-                      Colors.white.withValues(alpha: 0.02),
+                      Colors.white.withValues(alpha: 0.01),
                       _glassBase,
                     ),
                   ],
@@ -133,45 +133,52 @@ class GradientButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Material is needed so Ink paints above the screen's background.
-    return Material(
-      type: MaterialType.transparency,
-      child: Ink(
-        height: 56,
-        decoration: BoxDecoration(
-          gradient: brandGradient,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB45CF5).withValues(alpha: 0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: onPressed,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, color: Colors.white),
-                const SizedBox(width: 8),
-              ],
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+    // The glow sits outside Ink: Ink clips its decoration to its own bounds,
+    // which would cut the shadow into a hard strip. Material is needed so Ink
+    // paints above the screen's background.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB45CF5).withValues(alpha: 0.4),
+            blurRadius: 18,
+            spreadRadius: -2,
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Ink(
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: brandGradient,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(28),
+            onTap: onPressed,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, color: Colors.white),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              if (trailingIcon != null) ...[
-                const SizedBox(width: 8),
-                Icon(trailingIcon, color: Colors.white),
+                if (trailingIcon != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(trailingIcon, color: Colors.white),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
