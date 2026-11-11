@@ -2585,7 +2585,7 @@ void main() {
       // Their attempt is recorded, then played backwards for the team.
       expect(title(tester), 'Sing what you heard');
       await record(tester);
-      expect(title(tester), 'Team 1, guess the song!');
+      expect(title(tester), 'Team 1: a player guesses the song!');
       await play(tester);
       expect(voice.played.last, reverseWav(voice.originals[1]));
       await tapKey(tester, 'reverseGuessed');
@@ -2609,9 +2609,9 @@ void main() {
 
       // Turn 2: Team 2 cannot, so Team 1 gets the chance and guesses.
       await performTurn(tester);
-      expect(title(tester), 'Team 2, guess the song!');
+      expect(title(tester), 'Team 2: a player guesses the song!');
       await tapKey(tester, 'reverseFailed');
-      expect(title(tester), 'Team 1, your chance to guess!');
+      expect(title(tester), 'Team 1: a player tries to guess!');
       await tapKey(tester, 'reverseGuessed');
       await tapText(tester, 'See the results');
 
@@ -2629,9 +2629,9 @@ void main() {
       await startSongBackwards(tester, teams: 3);
       await performTurn(tester);
       await tapKey(tester, 'reverseFailed'); // Team 1 passes
-      expect(title(tester), 'Team 2, your chance to guess!');
+      expect(title(tester), 'Team 2: a player tries to guess!');
       await tapKey(tester, 'reverseFailed');
-      expect(title(tester), 'Team 3, your chance to guess!');
+      expect(title(tester), 'Team 3: a player tries to guess!');
       await tapKey(tester, 'reverseFailed');
       // Everyone failed: straight to the original.
       expect(title(tester), 'The original');
