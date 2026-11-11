@@ -14,6 +14,7 @@ import '../spy/spy_round.dart';
 import '../mafia/mafia_round.dart';
 import 'charades_game_screen.dart';
 import 'game_screen.dart';
+import '../reverse/reverse_turns.dart';
 import 'reverse_song_screen.dart';
 import 'mafia_game_screen.dart';
 import 'spy_game_screen.dart';
@@ -49,6 +50,17 @@ class _SetupScreenState extends State<SetupScreen> {
   final _singleWord = TextEditingController();
   int _spies = 1;
   int _minutes = 8;
+
+  // Song Backwards: the players of each team (one list per team, parallel to
+  // the team names in [_names]).
+  late final _members = <List<TextEditingController>>[
+    if (widget.mode == GameMode.reverseSong)
+      for (var i = 0; i < widget.mode.defaultPlayers; i++)
+        [TextEditingController(), TextEditingController()],
+  ];
+  static const _maxTeams = 4;
+  static const _minTeamPlayers = 2;
+  static const _maxTeamPlayers = 6;
 
   // Charades options.
   int _turnSeconds = 60;
@@ -100,6 +112,11 @@ class _SetupScreenState extends State<SetupScreen> {
     for (final c in _names) {
       c.dispose();
     }
+    for (final team in _members) {
+      for (final c in team) {
+        c.dispose();
+      }
+    }
     _singleWord.dispose();
     super.dispose();
   }
@@ -107,17 +124,40 @@ class _SetupScreenState extends State<SetupScreen> {
   void _changePlayers(int delta) => setState(() {
     final target = (_players + delta).clamp(
       widget.mode.minPlayers,
-      SetupScreen.maxPlayers,
+      _isTeamGame ? _maxTeams : SetupScreen.maxPlayers,
     );
     while (_names.length < target) {
       _names.add(TextEditingController());
+      if (_isTeamGame) {
+        _members.add([TextEditingController(), TextEditingController()]);
+      }
     }
     while (_names.length > target) {
       _names.removeLast().dispose();
+      if (_isTeamGame) {
+        for (final c in _members.removeLast()) {
+          c.dispose();
+        }
+      }
     }
     // Fewer players may no longer allow as many spies.
     _spies = _spies.clamp(1, SpyRound.maxSpiesFor(_players));
     _mafia = _mafia.clamp(1, MafiaRound.maxMafiaFor(_players));
+  });
+
+  /// Adds or removes a player of team [team].
+  void _changeMembers(int team, int delta) => setState(() {
+    final members = _members[team];
+    final target = (members.length + delta).clamp(
+      _minTeamPlayers,
+      _maxTeamPlayers,
+    );
+    while (members.length < target) {
+      members.add(TextEditingController());
+    }
+    while (members.length > target) {
+      members.removeLast().dispose();
+    }
   });
 
   void _start() {
@@ -157,7 +197,15 @@ class _SetupScreenState extends State<SetupScreen> {
             duration: Duration(minutes: _minutes),
           ),
           GameMode.reverseSong => ReverseSongScreen(
-            playerNames: names,
+            teams: [
+              for (var i = 0; i < _players; i++)
+                ReverseTeam(names[i], [
+                  for (var k = 0; k < _members[i].length; k++)
+                    _members[i][k].text.trim().isEmpty
+                        ? s.defaultPlayerName(k + 1)
+                        : _members[i][k].text.trim(),
+                ]),
+            ],
             rounds: _rounds,
           ),
           GameMode.charades => CharadesGameScreen(
@@ -326,6 +374,77 @@ class _SetupScreenState extends State<SetupScreen> {
         },
       ),
     ];
+  }
+
+  /// One team: its name, how many players it has and their names.
+  Widget _teamBlock(Strings s, ThemeData theme, int team) {
+    final members = _members[team];
+    return Container(
+      key: Key('team$team'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        children: [
+          _NameField(
+            controller: _names[team],
+            hint: s.defaultTeamName(team + 1),
+            maxLength: _maxNameLength,
+            isLast: false,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  s['players'],
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+                ),
+              ),
+              GlassIconButton(
+                icon: Icons.remove,
+                tooltip: '− ${team + 1}',
+                onPressed: members.length > _minTeamPlayers
+                    ? () => _changeMembers(team, -1)
+                    : null,
+              ),
+              SizedBox(
+                width: 40,
+                child: Text(
+                  '${members.length}',
+                  key: Key('teamSize$team'),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              GlassIconButton(
+                icon: Icons.add,
+                tooltip: '+ ${team + 1}',
+                onPressed: members.length < _maxTeamPlayers
+                    ? () => _changeMembers(team, 1)
+                    : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (var k = 0; k < members.length; k++) ...[
+            if (k > 0) const SizedBox(height: 8),
+            _NameField(
+              controller: members[k],
+              hint: s.defaultPlayerName(k + 1),
+              maxLength: _maxNameLength,
+              isLast: k == members.length - 1,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   /// Song Backwards: only the number of rounds (the singers stop their own
@@ -555,7 +674,10 @@ class _SetupScreenState extends State<SetupScreen> {
                                         icon: Icons.add,
                                         tooltip: '+',
                                         onPressed:
-                                            _players < SetupScreen.maxPlayers
+                                            _players <
+                                                (_isTeamGame
+                                                    ? _maxTeams
+                                                    : SetupScreen.maxPlayers)
                                             ? () => _changePlayers(1)
                                             : null,
                                       ),
@@ -564,12 +686,15 @@ class _SetupScreenState extends State<SetupScreen> {
                                   const SizedBox(height: 16),
                                   for (var i = 0; i < _players; i++) ...[
                                     if (i > 0) const SizedBox(height: 10),
-                                    _NameField(
-                                      controller: _names[i],
-                                      hint: _defaultName(s, i + 1),
-                                      maxLength: _maxNameLength,
-                                      isLast: i == _players - 1,
-                                    ),
+                                    if (_isTeamGame)
+                                      _teamBlock(s, theme, i)
+                                    else
+                                      _NameField(
+                                        controller: _names[i],
+                                        hint: _defaultName(s, i + 1),
+                                        maxLength: _maxNameLength,
+                                        isLast: i == _players - 1,
+                                      ),
                                   ],
                                   ..._modeOptions(s, theme),
                                 ],
