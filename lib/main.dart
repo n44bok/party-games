@@ -19,7 +19,7 @@ Future<void> main() async {
     const Duration(seconds: 3),
     onTimeout: () => debugPrint('Ads SDK is slow to start; continuing.'),
   );
-  runApp(PartyGamesApp(settings: settings, ads: ads));
+  runApp(PartyGamesApp(settings: settings, ads: ads, scrollHint: true));
 }
 
 class PartyGamesApp extends StatefulWidget {
@@ -28,6 +28,7 @@ class PartyGamesApp extends StatefulWidget {
     this.repository,
     this.settings,
     this.ads = const NoAdService(),
+    this.scrollHint = false,
   });
 
   /// Override to supply content from somewhere other than the asset bundle.
@@ -38,6 +39,10 @@ class PartyGamesApp extends StatefulWidget {
 
   /// Ads; none unless provided (so tests never touch the ads SDK).
   final AdService ads;
+
+  /// Auto-scroll the home screen once to show that it scrolls. Off by
+  /// default so tests are not disturbed by a moving grid.
+  final bool scrollHint;
 
   @override
   State<PartyGamesApp> createState() => _PartyGamesAppState();
@@ -106,7 +111,7 @@ class _PartyGamesAppState extends State<PartyGamesApp> {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: HomeScreen(scrollHint: widget.scrollHint),
     );
   }
 }

@@ -545,4 +545,114 @@ void main() {
       expect(ads.games, 2);
     });
   });
+
+  group('scroll hint', () {
+    /// A short screen, so the six cards do not all fit and the grid scrolls.
+    void shortPhone(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1170, 1800);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+    }
+
+    /// Advances the clock in small steps so animations get frames (a single
+    /// long pump renders just one).
+    Future<void> advance(WidgetTester tester, Duration total) async {
+      for (
+        var t = Duration.zero;
+        t < total;
+        t += const Duration(milliseconds: 50)
+      ) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    double offset(WidgetTester tester) => tester
+        .state<ScrollableState>(
+          find.descendant(
+            of: find.byType(GridView),
+            matching: find.byType(Scrollable),
+          ),
+        )
+        .position
+        .pixels;
+
+    testWidgets('is off unless asked for', (tester) async {
+      shortPhone(tester);
+      await tester.pumpWidget(app());
+      await advance(tester, const Duration(seconds: 3));
+      expect(offset(tester), 0);
+    });
+
+    testWidgets('scrolls down to the last game and back to the top', (
+      tester,
+    ) async {
+      shortPhone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), scrollHint: true),
+      );
+      expect(offset(tester), 0); // waits a moment before starting
+
+      await advance(tester, const Duration(milliseconds: 1500));
+      expect(offset(tester), greaterThan(0)); // on its way down
+
+      // It reaches the very end, pauses, then returns.
+      await advance(tester, const Duration(milliseconds: 1500));
+      final grid = tester.state<ScrollableState>(
+        find.descendant(
+          of: find.byType(GridView),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      expect(grid.position.maxScrollExtent, greaterThan(0));
+
+      await advance(tester, const Duration(seconds: 4));
+      expect(offset(tester), 0);
+    });
+
+    testWidgets('a touch stops it where it is, for good', (tester) async {
+      shortPhone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), scrollHint: true),
+      );
+      await advance(tester, const Duration(milliseconds: 1300));
+      expect(offset(tester), greaterThan(0));
+
+      final gesture = await tester.startGesture(const Offset(200, 300));
+      await gesture.up();
+      final stopped = offset(tester);
+      await advance(tester, const Duration(seconds: 5));
+      expect(offset(tester), stopped); // no further automatic movement
+    });
+
+    testWidgets('still plays if the list only becomes scrollable later', (
+      tester,
+    ) async {
+      // Starts tall: everything fits, so there is nothing to hint at yet...
+      phone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), scrollHint: true),
+      );
+      await advance(tester, const Duration(milliseconds: 1200));
+      expect(offset(tester), 0);
+
+      // ...then it shrinks (as when the banner loads and takes space).
+      tester.view.physicalSize = const Size(1170, 1800);
+      // The whole trip may finish within this time, so watch how far it got.
+      var furthest = 0.0;
+      for (var i = 0; i < 80; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        if (offset(tester) > furthest) furthest = offset(tester);
+      }
+      expect(furthest, greaterThan(0));
+    });
+
+    testWidgets('does nothing when every game already fits', (tester) async {
+      phone(tester); // tall enough for all six cards
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), scrollHint: true),
+      );
+      await advance(tester, const Duration(seconds: 5));
+      expect(offset(tester), 0);
+    });
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../ads/ad_service.dart';
@@ -12,7 +14,11 @@ import 'setup_screen.dart';
 
 /// Shell with the bottom navigation: Home / Favorites / Packs / Stats.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.scrollHint = false});
+
+  /// Briefly scroll the games list on first show, so people notice it
+  /// scrolls. Off by default; the app turns it on.
+  final bool scrollHint;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -30,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: IndexedStack(
             index: _tab,
             children: [
-              const _GamesTab(),
+              _GamesTab(scrollHint: widget.scrollHint),
               _ComingSoonTab(
                 icon: Icons.favorite_border,
                 title: s['favorites'],
@@ -71,8 +77,80 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _GamesTab extends StatelessWidget {
-  const _GamesTab();
+class _GamesTab extends StatefulWidget {
+  const _GamesTab({required this.scrollHint});
+
+  final bool scrollHint;
+
+  @override
+  State<_GamesTab> createState() => _GamesTabState();
+}
+
+class _GamesTabState extends State<_GamesTab> {
+  static const _hintDelay = Duration(milliseconds: 900);
+  static const _hintPause = Duration(milliseconds: 250);
+  static const _hintRetry = Duration(seconds: 1);
+  static const _maxHintAttempts = 4;
+
+  final _scroll = ScrollController();
+  Timer? _hintTimer;
+  int _hintAttempts = 0;
+  bool _hinting = false;
+  bool _hintCancelled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // The state outlives tab switches, so this runs once per app launch.
+    if (widget.scrollHint) _hintTimer = Timer(_hintDelay, _playScrollHint);
+  }
+
+  /// Scrolls down to the last game and back up, once.
+  Future<void> _playScrollHint() async {
+    if (!mounted || _hintCancelled || !_scroll.hasClients) return;
+    if (MediaQuery.disableAnimationsOf(context)) return; // respect the setting
+    final extent = _scroll.position.maxScrollExtent;
+    if (extent <= 0) {
+      // Everything fits for now. The banner can still arrive and take space,
+      // making the list scrollable, so look again a few times.
+      if (_hintAttempts++ < _maxHintAttempts) {
+        _hintTimer = Timer(_hintRetry, _playScrollHint);
+      }
+      return;
+    }
+
+    final duration = Duration(
+      milliseconds: (500 + extent * 1.2).round().clamp(500, 1400),
+    );
+    _hinting = true;
+    try {
+      await _scroll.animateTo(
+        extent,
+        duration: duration,
+        curve: Curves.easeInOut,
+      );
+      if (!mounted || _hintCancelled) return;
+      await Future<void>.delayed(_hintPause);
+      if (!mounted || _hintCancelled) return;
+      await _scroll.animateTo(0, duration: duration, curve: Curves.easeInOut);
+    } finally {
+      _hinting = false;
+    }
+  }
+
+  /// The user touched the screen: stop where we are and never start again.
+  void _cancelScrollHint() {
+    _hintCancelled = true;
+    _hintTimer?.cancel();
+    if (_hinting && _scroll.hasClients) _scroll.jumpTo(_scroll.offset);
+  }
+
+  @override
+  void dispose() {
+    _hintTimer?.cancel();
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,23 +216,27 @@ class _GamesTab extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
-              childAspectRatio: 1.3,
-              children: [
-                for (final mode in GameMode.values)
-                  _ModeCard(
-                    mode: mode,
-                    title: s.modeName(mode),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => SetupScreen(mode: mode),
+            child: Listener(
+              onPointerDown: (_) => _cancelScrollHint(),
+              child: GridView.count(
+                controller: _scroll,
+                crossAxisCount: 2,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                childAspectRatio: 1.3,
+                children: [
+                  for (final mode in GameMode.values)
+                    _ModeCard(
+                      mode: mode,
+                      title: s.modeName(mode),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SetupScreen(mode: mode),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           // Banner under the games; takes no space until an ad has loaded.
