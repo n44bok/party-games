@@ -28,6 +28,12 @@ class Strings {
       'most_likely': 'Most Likely To',
       'truth_or_dare': 'Truth or Dare',
       'empty': 'No content available',
+      'never_have_i_ever': 'Never Have I Ever',
+      'players': 'Players',
+      'category': 'Category',
+      'start': 'Start Game',
+      'change_type': 'Change Type',
+      'player_of': 'Player {n} of {total}',
       'all': 'All',
       'friends': 'Friends',
       'party': 'Party',
@@ -44,6 +50,12 @@ class Strings {
       'most_likely': 'Хто найімовірніше',
       'truth_or_dare': 'Правда чи дія',
       'empty': 'Немає контенту',
+      'never_have_i_ever': 'Я ніколи не…',
+      'players': 'Гравці',
+      'category': 'Категорія',
+      'start': 'Почати гру',
+      'change_type': 'Змінити тип',
+      'player_of': 'Гравець {n} з {total}',
       'all': 'Усі',
       'friends': 'Друзі',
       'party': 'Вечірка',
@@ -54,4 +66,7 @@ class Strings {
   String operator [](String key) => _t[code]![key] ?? key;
 
   String modeName(GameMode m) => this[m.id];
+
+  String playerOf(int n, int total) =>
+      this['player_of'].replaceAll('{n}', '$n').replaceAll('{total}', '$total');
 }

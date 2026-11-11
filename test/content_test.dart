@@ -6,7 +6,13 @@ import 'package:party_games/data/strings.dart';
 import 'package:party_games/models/game_mode.dart';
 
 void main() {
-  const files = ['would_you_rather', 'most_likely', 'truth', 'dare'];
+  const files = [
+    'would_you_rather',
+    'most_likely',
+    'never_have_i_ever',
+    'truth',
+    'dare',
+  ];
 
   Map<String, dynamic> read(String lang, String file) =>
       jsonDecode(File('assets/content/$lang/$file.json').readAsStringSync())

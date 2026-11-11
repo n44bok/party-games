@@ -15,8 +15,16 @@ class PartyGamesApp extends StatelessWidget {
       title: 'Party Games',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF6C63FF),
+        colorSchemeSeed: const Color(0xFF7B4DFF),
         useMaterial3: true,
+        brightness: Brightness.light,
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
+          ),
+        ),
       ),
       supportedLocales: [for (final c in Strings.supported) Locale(c)],
       localizationsDelegates: const [

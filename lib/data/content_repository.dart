@@ -12,7 +12,7 @@ class ContentRepository {
 
   final AssetBundle _bundle;
 
-  Future<List<Prompt>> load(GameMode mode, String lang, Strings0 labels) async {
+  Future<List<Prompt>> load(GameMode mode, String lang) async {
     final result = <Prompt>[];
     for (final file in mode.files) {
       final raw = await _bundle.loadString('assets/content/$lang/$file.json');
@@ -29,7 +29,7 @@ class ContentRepository {
               Prompt(
                 item as String,
                 category,
-                label: mode == GameMode.truthOrDare ? labels(file) : null,
+                kind: mode == GameMode.truthOrDare ? file : null,
               ),
             );
           }
@@ -39,6 +39,3 @@ class ContentRepository {
     return result;
   }
 }
-
-/// Resolves a content file name ("truth"/"dare") to a localized badge.
-typedef Strings0 = String Function(String key);

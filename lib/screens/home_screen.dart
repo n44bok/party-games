@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../data/strings.dart';
 import '../models/game_mode.dart';
-import 'game_screen.dart';
+import '../widgets/gradient_background.dart';
+import 'setup_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -10,42 +11,53 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
+    final theme = Theme.of(context);
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              Text(
-                s['title'],
-                style: Theme.of(context).textTheme.headlineLarge
-                    ?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 4),
-              Text(s['subtitle'], style: Theme.of(context).textTheme.bodyLarge),
-              const SizedBox(height: 24),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: GameMode.values.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 16),
-                  itemBuilder: (context, i) {
-                    final mode = GameMode.values[i];
-                    return _ModeCard(
-                      mode: mode,
-                      title: s.modeName(mode),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => GameScreen(mode: mode),
-                        ),
-                      ),
-                    );
-                  },
+      body: GradientBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 12),
+                Text(
+                  s['title'],
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              // TODO(ads): banner placeholder goes here.
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  s['subtitle'],
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 24),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.9,
+                    children: [
+                      for (final mode in GameMode.values)
+                        _ModeCard(
+                          mode: mode,
+                          title: s.modeName(mode),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SetupScreen(mode: mode),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // TODO(ads): banner placeholder goes here.
+              ],
+            ),
           ),
         ),
       ),
@@ -66,29 +78,37 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: mode.color,
-      borderRadius: BorderRadius.circular(24),
+    return Ink(
+      decoration: BoxDecoration(
+        gradient: mode.gradient,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: mode.color.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Row(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(mode.icon, size: 48, color: Colors.white),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.white),
             ],
           ),
         ),

@@ -2,30 +2,51 @@ import 'package:flutter/material.dart';
 
 /// A single prompt shown to players.
 class Prompt {
-  const Prompt(this.text, this.category, {this.optionB, this.label});
-
-  final Category category;
+  const Prompt(this.text, this.category, {this.optionB, this.kind});
 
   /// Main text (for Would You Rather this is option A).
   final String text;
 
+  final Category category;
+
   /// Second option, only for Would You Rather.
   final String? optionB;
 
-  /// Optional badge, e.g. "Truth" / "Dare".
-  final String? label;
+  /// Sub-type inside a mode, e.g. "truth" / "dare". Also a Strings key.
+  final String? kind;
 }
 
 enum GameMode {
-  wouldYouRather('would_you_rather', Icons.compare_arrows, Color(0xFF6C63FF)),
-  mostLikely('most_likely', Icons.emoji_people, Color(0xFFFF6584)),
-  truthOrDare('truth_or_dare', Icons.local_fire_department, Color(0xFFFFA726));
+  truthOrDare('truth_or_dare', Icons.local_fire_department, [
+    Color(0xFFFF6B8B),
+    Color(0xFFE0366F),
+  ]),
+  mostLikely('most_likely', Icons.help_outline_rounded, [
+    Color(0xFFA06CF5),
+    Color(0xFF6C3FD8),
+  ]),
+  neverHaveIEver('never_have_i_ever', Icons.back_hand_outlined, [
+    Color(0xFFFFB531),
+    Color(0xFFF28A0C),
+  ]),
+  wouldYouRather('would_you_rather', Icons.compare_arrows_rounded, [
+    Color(0xFF3FC98B),
+    Color(0xFF1E9E63),
+  ]);
 
-  const GameMode(this.id, this.icon, this.color);
+  const GameMode(this.id, this.icon, this.colors);
 
   final String id;
   final IconData icon;
-  final Color color;
+  final List<Color> colors;
+
+  Color get color => colors.last;
+
+  LinearGradient get gradient => LinearGradient(
+    colors: colors,
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   /// Content files that feed this mode.
   List<String> get files =>
