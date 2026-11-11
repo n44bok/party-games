@@ -19,22 +19,23 @@ import '../widgets/round_parts.dart';
 enum _Phase {
   ready,
   singing,
-  passImitator,
   listening,
   imitating,
   guessing,
+  steal,
   reveal,
   result,
 }
 
-/// The whole "Song backwards" game on one screen.
+/// The whole "Song backwards" team game on one screen.
 ///
-/// 1. A player sings a short part of a song into the microphone.
-/// 2. The next player hears the recording played backwards and sings back
-///    what they heard.
-/// 3. The app plays that attempt backwards: everyone else guesses the song.
-/// 4. The original is played to check. If they guessed it, the two singers
-///    score a point each.
+/// On a team's turn:
+/// 1. one of its players sings a short part of a song into the microphone;
+/// 2. a teammate hears the recording played backwards and sings back what
+///    they heard;
+/// 3. the app plays that attempt backwards and the team guesses the song;
+/// 4. if it cannot, the other teams get the chance one after another;
+/// 5. the original is played, and whoever guessed has scored a point.
 class ReverseSongScreen extends StatefulWidget {
   const ReverseSongScreen({
     super.key,
@@ -42,10 +43,10 @@ class ReverseSongScreen extends StatefulWidget {
     required this.rounds,
   });
 
-  /// Display names in turn order (two at least).
+  /// Team names in turn order (two at least).
   final List<String> playerNames;
 
-  /// How many times each player sings the original.
+  /// How many times each team has the turn.
   final int rounds;
 
   @override
@@ -79,11 +80,16 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
   String? _problem;
 
   int get _players => widget.playerNames.length;
-  int get _singer => _turn % _players;
 
-  /// With only two players (or teams) the same one sings and sings back,
-  /// and the other one guesses.
-  int get _imitator => _players == 2 ? _singer : (_singer + 1) % _players;
+  /// The team whose turn it is.
+  int get _team => _turn % _players;
+
+  /// How many of the other teams have already had their chance to guess.
+  int _stealStep = 0;
+
+  /// The other team that is guessing now (after the turn's own team).
+  int get _stealTeam => (_team + 1 + _stealStep) % _players;
+
   int get _round => _turn ~/ _players + 1;
   String _name(int i) => widget.playerNames[i];
 
@@ -160,8 +166,7 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
       if (_phase == _Phase.singing) {
         _original = done.original;
         _originalReversed = done.reversed;
-        // The same player keeps the phone when they are their own imitator.
-        _phase = _imitator == _singer ? _Phase.listening : _Phase.passImitator;
+        _phase = _Phase.listening;
       } else {
         _imitationReversed = done.reversed;
         _phase = _Phase.guessing;
@@ -193,16 +198,39 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
     });
   }
 
-  void _score(bool guessed) {
+  /// [team] guessed the song: a point for them, then the original.
+  void _award(int team) {
     _haptic();
-    if (guessed) {
-      _scores[_singer]++;
-      if (_imitator != _singer) _scores[_imitator]++;
+    _scores[team]++;
+    _go(_Phase.reveal);
+  }
+
+  /// The turn's own team cannot guess: the next team gets its chance.
+  void _passOn() {
+    _stealStep = 0;
+    _go(_Phase.steal);
+  }
+
+  /// The team that had its chance did not guess it either.
+  void _stealFailed() {
+    if (_stealStep + 1 >= _players - 1) {
+      _go(_Phase.reveal); // nobody is left to try
+    } else {
+      _voice.stopPlaying();
+      setState(() {
+        _stealStep++;
+        _playing = false;
+      });
     }
+  }
+
+  /// After the original: the next team's turn, or the results.
+  void _nextTurn() {
     if (_turn + 1 >= _players * widget.rounds) {
       _go(_Phase.result);
     } else {
       _turn++;
+      _stealStep = 0;
       _original = _originalReversed = _imitationReversed = null;
       _go(_Phase.ready);
     }
@@ -211,6 +239,7 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
   void _playAgain() {
     _scores = List.filled(_players, 0);
     _turn = 0;
+    _stealStep = 0;
     _original = _originalReversed = _imitationReversed = null;
     _go(_Phase.ready);
   }
@@ -258,15 +287,14 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
                     _Phase.singing => _buildRecord(
                       s,
                       title: s.format('reverse_sing_title', {
-                        'name': _name(_singer),
+                        'name': _name(_team),
                       }),
                       hint: s['reverse_sing_hint'],
                     ),
-                    _Phase.passImitator => _buildPass(s),
                     _Phase.listening => _buildStep(
                       s,
                       title: s.format('reverse_listen_title', {
-                        'name': _name(_imitator),
+                        'name': _name(_team),
                       }),
                       hint: s['reverse_listen_hint'],
                       audio: _originalReversed,
@@ -278,13 +306,27 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
                       title: s['reverse_imitate_title'],
                       hint: s['reverse_imitate_hint'],
                     ),
-                    _Phase.guessing => _buildStep(
+                    _Phase.guessing => _buildGuess(
                       s,
-                      title: s['reverse_guess_title'],
+                      team: _team,
+                      title: s.format('reverse_guess_title', {
+                        'name': _name(_team),
+                      }),
                       hint: s['reverse_guess_hint'],
-                      audio: _imitationReversed,
-                      buttonLabel: s['reverse_reveal'],
-                      onNext: () => _go(_Phase.reveal),
+                      onGuessed: () => _award(_team),
+                      onFailed: _passOn,
+                      failedLabel: s['reverse_pass_on'],
+                    ),
+                    _Phase.steal => _buildGuess(
+                      s,
+                      team: _stealTeam,
+                      title: s.format('reverse_steal_title', {
+                        'name': _name(_stealTeam),
+                      }),
+                      hint: s['reverse_steal_hint'],
+                      onGuessed: () => _award(_stealTeam),
+                      onFailed: _stealFailed,
+                      failedLabel: s['reverse_no'],
                     ),
                     _Phase.reveal => _buildReveal(s),
                     _Phase.result => _buildResult(s),
@@ -311,9 +353,9 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
           child: Center(
             child: PassCard(
               key: ValueKey('ready$_turn'),
-              name: _name(_singer),
+              name: _name(_team),
               label: s['spy_pass_to'],
-              nameKey: const Key('reverseSinger'),
+              nameKey: const Key('reverseTeam'),
             ),
           ),
         ),
@@ -322,29 +364,6 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
           icon: Icons.play_arrow_rounded,
           height: 60,
           onPressed: () => _go(_Phase.singing),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPass(Strings s) {
-    return Column(
-      children: [
-        Expanded(
-          child: Center(
-            child: PassCard(
-              key: ValueKey('pass$_turn'),
-              name: _name(_imitator),
-              label: s['spy_pass_to'],
-              nameKey: const Key('reverseImitator'),
-            ),
-          ),
-        ),
-        GradientButton(
-          label: s['charades_ready'],
-          icon: Icons.hearing_rounded,
-          height: 60,
-          onPressed: () => _go(_Phase.listening),
         ),
       ],
     );
@@ -454,6 +473,49 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
     );
   }
 
+  /// A team listens to the imitation as often as it likes, then says
+  /// whether it knows the song.
+  Widget _buildGuess(
+    Strings s, {
+    required int team,
+    required String title,
+    required String hint,
+    required VoidCallback onGuessed,
+    required VoidCallback onFailed,
+    required String failedLabel,
+  }) {
+    return Column(
+      key: ValueKey('guess$team$_phase'),
+      children: [
+        _heading(title, hint),
+        Expanded(
+          child: Center(
+            child: _PlayButton(
+              playing: _playing,
+              playLabel: s['reverse_play'],
+              stopLabel: s['reverse_stop'],
+              onTap: () => _togglePlay(_imitationReversed),
+            ),
+          ),
+        ),
+        GradientButton(
+          key: const Key('reverseGuessed'),
+          label: s['reverse_yes'],
+          icon: Icons.check_rounded,
+          height: 60,
+          onPressed: onGuessed,
+        ),
+        const SizedBox(height: 12),
+        GlassButton(
+          key: const Key('reverseFailed'),
+          label: failedLabel,
+          icon: Icons.close_rounded,
+          onPressed: onFailed,
+        ),
+      ],
+    );
+  }
+
   Widget _buildReveal(Strings s) {
     return Column(
       children: [
@@ -469,16 +531,11 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
           ),
         ),
         GradientButton(
-          label: s['reverse_yes'],
-          icon: Icons.check_rounded,
+          label: _turn + 1 >= _players * widget.rounds
+              ? s['charades_see_results']
+              : s['reverse_next_team'],
           height: 60,
-          onPressed: () => _score(true),
-        ),
-        const SizedBox(height: 12),
-        GlassButton(
-          label: s['reverse_no'],
-          icon: Icons.close_rounded,
-          onPressed: () => _score(false),
+          onPressed: _nextTurn,
         ),
       ],
     );

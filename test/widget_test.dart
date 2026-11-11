@@ -2478,7 +2478,11 @@ void main() {
       expect(wavDuration(Uint8List(5)), Duration.zero);
     });
 
-    Future<FakeVoiceService> startSongBackwards(WidgetTester tester) async {
+    Future<FakeVoiceService> startSongBackwards(
+      WidgetTester tester, {
+      int teams = 2,
+      int rounds = 1,
+    }) async {
       spyPhone(tester);
       final voice = FakeVoiceService();
       await tester.pumpWidget(
@@ -2486,11 +2490,26 @@ void main() {
       );
       await openGame(tester, 'Song Backwards');
       await settle(tester);
-      expect(find.byKey(const Key('roundsPills')), findsOneWidget);
+      expect(find.text('Teams'), findsOneWidget);
+      expect(find.text('Team 1'), findsOneWidget); // the field's hint
       expect(
         tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
-        '3',
+        '2',
       );
+      for (var i = 2; i < teams; i++) {
+        await tester.tap(find.byTooltip('+'));
+        await tester.pump();
+      }
+      if (rounds != 1) {
+        final pill = find.descendant(
+          of: find.byKey(const Key('roundsPills')),
+          matching: find.text('$rounds'),
+        );
+        await tester.ensureVisible(pill);
+        await tester.pump();
+        await tester.tap(pill);
+        await tester.pump();
+      }
       await startGame(tester);
       await settle(tester);
       await settle(tester);
@@ -2499,6 +2518,11 @@ void main() {
 
     Future<void> tapText(WidgetTester tester, String text) async {
       await tester.tap(find.text(text));
+      await settle(tester);
+    }
+
+    Future<void> tapKey(WidgetTester tester, String key) async {
+      await tester.tap(find.byKey(Key(key)));
       await settle(tester);
     }
 
@@ -2518,21 +2542,33 @@ void main() {
     String title(WidgetTester tester) =>
         tester.widget<Text>(find.byKey(const Key('reverseTitle'))).data!;
 
-    String passName(WidgetTester tester, String key) =>
-        tester.widget<GradientText>(find.byKey(Key(key))).text;
+    String teamName(WidgetTester tester) =>
+        tester.widget<GradientText>(find.byKey(const Key('reverseTeam'))).text;
 
-    testWidgets('is fourth and starts with three players', (tester) async {
+    /// The team sings, a teammate sings back, and the imitation is up.
+    Future<void> performTurn(WidgetTester tester) async {
+      await tapText(tester, "I'm ready");
+      await record(tester);
+      await tapText(tester, 'Now sing it back');
+      await record(tester);
+    }
+
+    int score(WidgetTester tester, int i) =>
+        int.parse(tester.widget<Text>(find.byKey(Key('reverseFinal$i'))).data!);
+
+    testWidgets('is fourth and starts with two teams', (tester) async {
       expect(GameMode.values[3], GameMode.reverseSong);
+      await startSongBackwards(tester);
+      expect(teamName(tester), 'Team 1');
     });
 
     testWidgets('one turn: sing, hear it backwards, sing back, guess', (
       tester,
     ) async {
       final voice = await startSongBackwards(tester);
-      expect(passName(tester, 'reverseSinger'), 'Player 1');
       await tapText(tester, "I'm ready");
 
-      expect(title(tester), 'Player 1, sing a song!');
+      expect(title(tester), 'Team 1: someone sing a song!');
       await tester.tap(find.byKey(const Key('reverseRecordButton')));
       await tester.pump();
       await tester.pump(const Duration(seconds: 3));
@@ -2540,51 +2576,82 @@ void main() {
       await tester.tap(find.byKey(const Key('reverseRecordButton')));
       await settle(tester);
 
-      // The next player gets the phone and hears the recording backwards.
-      expect(passName(tester, 'reverseImitator'), 'Player 2');
-      await tapText(tester, "I'm ready");
-      expect(title(tester), 'Player 2, listen closely');
+      // A teammate hears the recording backwards.
+      expect(title(tester), 'Team 1: a teammate listens closely');
       await play(tester);
       expect(voice.played.single, reverseWav(voice.originals[0]));
       await tapText(tester, 'Now sing it back');
 
-      // Their attempt is recorded, then played backwards for everyone.
+      // Their attempt is recorded, then played backwards for the team.
       expect(title(tester), 'Sing what you heard');
       await record(tester);
-      expect(title(tester), 'Guess the song!');
+      expect(title(tester), 'Team 1, guess the song!');
       await play(tester);
       expect(voice.played.last, reverseWav(voice.originals[1]));
-      await tapText(tester, 'Reveal the song');
+      await tapKey(tester, 'reverseGuessed');
 
-      // The original proves it.
+      // The original is played to confirm.
       expect(title(tester), 'The original');
       await play(tester);
       expect(voice.played.last, voice.originals[0]);
-      await tapText(tester, 'Guessed it!');
-
-      // The next turn: Player 2 sings, Player 3 imitates.
-      expect(passName(tester, 'reverseSinger'), 'Player 2');
+      await tapText(tester, 'Next team');
+      expect(teamName(tester), 'Team 2');
     });
 
-    testWidgets('up to five rounds can be chosen', (tester) async {
-      spyPhone(tester);
-      await tester.pumpWidget(
-        PartyGamesApp(repository: FakeRepository(), voice: FakeVoiceService()),
+    testWidgets('the team that guesses scores, own team or another', (
+      tester,
+    ) async {
+      await startSongBackwards(tester);
+      // Turn 1: Team 1 guesses its own song.
+      await performTurn(tester);
+      await tapKey(tester, 'reverseGuessed');
+      await tapText(tester, 'Next team');
+
+      // Turn 2: Team 2 cannot, so Team 1 gets the chance and guesses.
+      await performTurn(tester);
+      expect(title(tester), 'Team 2, guess the song!');
+      await tapKey(tester, 'reverseFailed');
+      expect(title(tester), 'Team 1, your chance to guess!');
+      await tapKey(tester, 'reverseGuessed');
+      await tapText(tester, 'See the results');
+
+      expect(score(tester, 0), 2);
+      expect(score(tester, 1), 0);
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('reverseWinner')))
+            .text,
+        'Team 1 wins!',
       );
-      await openGame(tester, 'Song Backwards');
-      await settle(tester);
-      final five = find.descendant(
-        of: find.byKey(const Key('roundsPills')),
-        matching: find.text('5'),
+    });
+
+    testWidgets('nobody scores when no team guesses', (tester) async {
+      await startSongBackwards(tester, teams: 3);
+      await performTurn(tester);
+      await tapKey(tester, 'reverseFailed'); // Team 1 passes
+      expect(title(tester), 'Team 2, your chance to guess!');
+      await tapKey(tester, 'reverseFailed');
+      expect(title(tester), 'Team 3, your chance to guess!');
+      await tapKey(tester, 'reverseFailed');
+      // Everyone failed: straight to the original.
+      expect(title(tester), 'The original');
+      await tapText(tester, 'Next team');
+
+      // Two more turns, played out without scoring.
+      for (var turn = 1; turn < 3; turn++) {
+        await performTurn(tester);
+        await tapKey(tester, 'reverseGuessed');
+        await tapText(tester, turn == 2 ? 'See the results' : 'Next team');
+      }
+      expect(score(tester, 0), 0);
+      expect(score(tester, 1), 1);
+      expect(score(tester, 2), 1);
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('reverseWinner')))
+            .text,
+        "It's a tie!",
       );
-      await tester.ensureVisible(five);
-      await tester.pump();
-      await tester.tap(five);
-      await tester.pump();
-      await startGame(tester);
-      await settle(tester);
-      await settle(tester);
-      expect(find.text('Round 1 of 5'), findsOneWidget);
     });
 
     testWidgets('a forgotten recording stops by itself after two minutes', (
@@ -2595,11 +2662,16 @@ void main() {
       await tester.tap(find.byKey(const Key('reverseRecordButton')));
       await tester.pump();
       await tester.pump(const Duration(seconds: 119));
-      expect(find.byKey(const Key('reverseImitator')), findsNothing);
+      expect(find.text('Now sing it back'), findsNothing);
       await tester.pump(const Duration(seconds: 1));
       await tester.pump();
       await tester.pump();
-      expect(find.byKey(const Key('reverseImitator')), findsOneWidget);
+      expect(find.text('Now sing it back'), findsOneWidget);
+    });
+
+    testWidgets('up to five rounds can be chosen', (tester) async {
+      await startSongBackwards(tester, rounds: 5);
+      expect(find.text('Round 1 of 5'), findsOneWidget);
     });
 
     testWidgets('without the microphone the game says so', (tester) async {
@@ -2613,46 +2685,10 @@ void main() {
       voice.permission = true;
       await tapText(tester, 'Try again');
       await record(tester);
-      expect(find.byKey(const Key('reverseImitator')), findsOneWidget);
+      expect(find.text('Now sing it back'), findsOneWidget);
     });
 
-    testWidgets('both singers score when the song is guessed', (tester) async {
-      await startSongBackwards(tester);
-      for (var turn = 0; turn < 3; turn++) {
-        await tapText(tester, "I'm ready");
-        await record(tester);
-        await tapText(tester, "I'm ready");
-        await tapText(tester, 'Now sing it back');
-        await record(tester);
-        await tapText(tester, 'Reveal the song');
-        // Guessed in the first two turns only.
-        await tapText(tester, turn < 2 ? 'Guessed it!' : 'Not this time');
-      }
-      // P1: 1 (turn 1). P2: 2 (turns 1 and 2). P3: 1 (turn 2).
-      expect(
-        tester
-            .widget<GradientText>(find.byKey(const Key('reverseWinner')))
-            .text,
-        'Player 2 wins!',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('reverseFinal0'))).data,
-        '1',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('reverseFinal1'))).data,
-        '2',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('reverseFinal2'))).data,
-        '1',
-      );
-
-      await tapText(tester, 'Finish');
-      expect(find.byType(HomeScreen), findsOneWidget);
-    });
-
-    testWidgets('two players: one performs, the other guesses', (tester) async {
+    testWidgets('two is the fewest teams', (tester) async {
       spyPhone(tester);
       await tester.pumpWidget(
         PartyGamesApp(repository: FakeRepository(), voice: FakeVoiceService()),
@@ -2665,43 +2701,6 @@ void main() {
         tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
         '2',
       );
-      // Two is the fewest.
-      await tester.tap(find.byTooltip('−'));
-      await tester.pump();
-      expect(
-        tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
-        '2',
-      );
-      await startGame(tester);
-      await settle(tester);
-      await settle(tester);
-
-      for (var turn = 0; turn < 2; turn++) {
-        expect(passName(tester, 'reverseSinger'), 'Player ${turn + 1}');
-        await tapText(tester, "I'm ready");
-        await record(tester);
-        // The same player listens: the phone is not passed on.
-        expect(find.byKey(const Key('reverseImitator')), findsNothing);
-        expect(title(tester), 'Player ${turn + 1}, listen closely');
-        await tapText(tester, 'Now sing it back');
-        await record(tester);
-        await tapText(tester, 'Reveal the song');
-        await tapText(tester, turn == 0 ? 'Guessed it!' : 'Not this time');
-      }
-      expect(
-        tester
-            .widget<GradientText>(find.byKey(const Key('reverseWinner')))
-            .text,
-        'Player 1 wins!',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('reverseFinal0'))).data,
-        '1',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('reverseFinal1'))).data,
-        '0',
-      );
     });
 
     testWidgets('its rules are explained in the help popover', (tester) async {
@@ -2709,7 +2708,7 @@ void main() {
       await tester.pumpWidget(app());
       await tester.tap(find.byTooltip('Rules').at(3));
       await settle(tester);
-      expect(find.textContaining('backwards'), findsWidgets);
+      expect(find.textContaining('A team game'), findsOneWidget);
     });
   });
 }

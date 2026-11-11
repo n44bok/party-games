@@ -78,7 +78,6 @@ enum GameMode {
     spy => 3,
     mafia => 6,
     charades => 3,
-    reverseSong => 3,
     _ => 2,
   };
 

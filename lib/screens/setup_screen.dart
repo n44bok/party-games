@@ -89,6 +89,12 @@ class _SetupScreenState extends State<SetupScreen> {
 
   int get _players => _names.length;
 
+  /// Song Backwards is played in teams, so its entries are teams.
+  bool get _isTeamGame => widget.mode == GameMode.reverseSong;
+
+  String _defaultName(Strings s, int n) =>
+      _isTeamGame ? s.defaultTeamName(n) : s.defaultPlayerName(n);
+
   @override
   void dispose() {
     for (final c in _names) {
@@ -136,7 +142,7 @@ class _SetupScreenState extends State<SetupScreen> {
     final names = [
       for (var i = 0; i < _players; i++)
         _names[i].text.trim().isEmpty
-            ? s.defaultPlayerName(i + 1)
+            ? _defaultName(s, i + 1)
             : _names[i].text.trim(),
     ];
     Navigator.of(context).push(
@@ -520,7 +526,9 @@ class _SetupScreenState extends State<SetupScreen> {
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          s['players'],
+                                          _isTeamGame
+                                              ? s['teams']
+                                              : s['players'],
                                           style: theme.textTheme.titleMedium,
                                         ),
                                       ),
@@ -558,7 +566,7 @@ class _SetupScreenState extends State<SetupScreen> {
                                     if (i > 0) const SizedBox(height: 10),
                                     _NameField(
                                       controller: _names[i],
-                                      hint: s.defaultPlayerName(i + 1),
+                                      hint: _defaultName(s, i + 1),
                                       maxLength: _maxNameLength,
                                       isLast: i == _players - 1,
                                     ),

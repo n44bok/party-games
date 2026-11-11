@@ -12,9 +12,9 @@ class SettingsScreen extends StatelessWidget {
   /// someone who ended up in the wrong one can still find theirs.
   static const _languages = [
     (code: 'en', name: 'English'),
-    (code: 'uk', name: 'Українська'),
-    (code: 'pl', name: 'Polski'),
     (code: 'es', name: 'Español'),
+    (code: 'pl', name: 'Polski'),
+    (code: 'uk', name: 'Українська'),
   ];
 
   @override
