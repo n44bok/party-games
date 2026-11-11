@@ -233,7 +233,6 @@ class _PromptCard extends StatelessWidget {
   static const _accent = Color(0xFFD59BFF);
   static const _pink = Color(0xFFF06FB5);
   static const _radius = 34.0;
-  static const _stroke = 2.0;
 
   /// How far the wave reaches below the card's bottom edge.
   static const _waveOverhang = 46.0;
@@ -245,7 +244,6 @@ class _PromptCard extends StatelessWidget {
       height: 1.25,
       fontWeight: FontWeight.w800,
       color: Colors.white,
-      shadows: [Shadow(color: Color(0x38FFFFFF), blurRadius: 12)],
     );
     final kind = prompt.kind;
     // The wave spills out of the card's bottom edge, so it lives outside the
@@ -257,73 +255,53 @@ class _PromptCard extends StatelessWidget {
           child: GlassCard(
             radius: _radius,
             padding: EdgeInsets.zero,
-            strokeWidth: _stroke,
-            // Dark, only slightly see-through base; glows are layered below.
+            // Dark glass; the colored glows are layered on top below.
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF241A3A).withValues(alpha: 0.82),
-                const Color(0xFF1B1230).withValues(alpha: 0.82),
+                const Color(0xFF1B1031).withValues(alpha: 0.62),
+                const Color(0xFF1B1031).withValues(alpha: 0.62),
               ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
             ),
-            // Glass edge: bright at the top-left, fading, pink at the end.
             borderGradient: LinearGradient(
               colors: [
-                Colors.white.withValues(alpha: 0.7),
-                Colors.white.withValues(alpha: 0.16),
-                Colors.white.withValues(alpha: 0.07),
-                _pink.withValues(alpha: 0.65),
+                Colors.white.withValues(alpha: 0.5),
+                Colors.white.withValues(alpha: 0.06),
+                _pink.withValues(alpha: 0.55),
               ],
-              stops: const [0.0, 0.3, 0.62, 1.0],
+              stops: const [0.0, 0.55, 1.0],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(_radius - _stroke),
+              borderRadius: BorderRadius.circular(
+                _radius - GlassCard.borderWidth,
+              ),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Soft violet glow, top-left.
+                  // Violet glow, top-left.
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: RadialGradient(
-                        center: const Alignment(-1.0, -1.0),
-                        radius: 0.95,
+                        center: const Alignment(-0.9, -1.0),
+                        radius: 1.0,
                         colors: [
-                          const Color(0xFF8B5CF6).withValues(alpha: 0.34),
+                          const Color(0xFF8B5CF6).withValues(alpha: 0.30),
                           const Color(0xFF8B5CF6).withValues(alpha: 0),
                         ],
                       ),
                     ),
                   ),
-                  // Purple haze drifting along the diagonal.
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          const Color(0xFF7A4DD8).withValues(alpha: 0.16),
-                          Colors.transparent,
-                        ],
-                        stops: const [0.2, 0.62, 1.0],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                  ),
-                  // Strong pink glow concentrated in the bottom-right corner.
+                  // Pink glow, bottom-right.
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: RadialGradient(
                         center: const Alignment(1.0, 1.0),
-                        radius: 0.8,
+                        radius: 0.95,
                         colors: [
-                          _pink.withValues(alpha: 0.8),
-                          _pink.withValues(alpha: 0.28),
+                          _pink.withValues(alpha: 0.55),
                           _pink.withValues(alpha: 0),
                         ],
-                        stops: const [0.0, 0.5, 1.0],
                       ),
                     ),
                   ),
@@ -372,28 +350,6 @@ class _PromptCard extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  // Inner rim and a sheen on the top edge: the glass's
-                  // thickness.
-                  IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(_radius - _stroke),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.10),
-                          width: 1.4,
-                        ),
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withValues(alpha: 0.13),
-                            Colors.white.withValues(alpha: 0),
-                          ],
-                          stops: const [0.0, 0.18],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
                     ),
                   ),
                 ],
