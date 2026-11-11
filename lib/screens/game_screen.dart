@@ -188,9 +188,6 @@ class _GameScreenState extends State<GameScreen> {
                         label: s['next'],
                         trailingIcon: Icons.arrow_forward_rounded,
                         height: 64,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF8B6BF5), Color(0xFFF2709C)],
-                        ),
                         onPressed: _next,
                       ),
                       if (mode == GameMode.truthOrDare) ...[
@@ -217,6 +214,11 @@ class _PromptCard extends StatelessWidget {
   final Strings strings;
 
   static const _accent = Color(0xFFD59BFF);
+  static const _pink = Color(0xFFF06FB5);
+  static const _radius = 34.0;
+
+  /// How far the wave reaches below the card's bottom edge.
+  static const _waveOverhang = 46.0;
 
   @override
   Widget build(BuildContext context) {
@@ -227,140 +229,279 @@ class _PromptCard extends StatelessWidget {
       color: Colors.white,
     );
     final kind = prompt.kind;
-    return SizedBox.expand(
-      child: GlassCard(
-        radius: 34,
-        padding: EdgeInsets.zero,
-        // Violet glow top-left, dark middle, pink glow bottom-right.
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF7A4DD8).withValues(alpha: 0.55),
-            const Color(0xFF1E1236).withValues(alpha: 0.6),
-            const Color(0xFFE0508F).withValues(alpha: 0.6),
-          ],
-          stops: const [0.0, 0.5, 1.0],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        // GlassCard doesn't clip its child, so round the wave's corners here.
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(34 - 1.2),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              const CustomPaint(painter: _WavePainter()),
-              LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 56,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      // Without a Truth/Dare badge the text sits in the middle.
-                      mainAxisAlignment: kind == null
-                          ? MainAxisAlignment.center
-                          : MainAxisAlignment.start,
-                      children: [
-                        if (kind != null) ...[
-                          GlassCard(
-                            radius: 28,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 22,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  kind == 'truth'
-                                      ? Icons.chat_bubble_outline_rounded
-                                      : Icons.bolt_rounded,
-                                  color: _accent,
-                                  size: 24,
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  strings[kind],
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 32),
+    // The wave spills out of the card's bottom edge, so it lives outside the
+    // card's clip.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: GlassCard(
+            radius: _radius,
+            padding: EdgeInsets.zero,
+            // Dark glass; the colored glows are layered on top below.
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF1B1031).withValues(alpha: 0.62),
+                const Color(0xFF1B1031).withValues(alpha: 0.62),
+              ],
+            ),
+            borderGradient: LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: 0.5),
+                Colors.white.withValues(alpha: 0.06),
+                _pink.withValues(alpha: 0.55),
+              ],
+              stops: const [0.0, 0.55, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(
+                _radius - GlassCard.borderWidth,
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Violet glow, top-left.
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.9, -1.0),
+                        radius: 1.0,
+                        colors: [
+                          const Color(0xFF8B5CF6).withValues(alpha: 0.38),
+                          const Color(0xFF8B5CF6).withValues(alpha: 0),
                         ],
-                        Text(
-                          prompt.text,
-                          textAlign: TextAlign.center,
-                          style: style,
-                        ),
-                        if (prompt.optionB != null) ...[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            child: Text(
-                              strings['or'],
-                              style: const TextStyle(
-                                color: _accent,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            prompt.optionB!,
-                            textAlign: TextAlign.center,
-                            style: style,
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  // Pink glow, bottom-right.
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(1.0, 1.0),
+                        radius: 0.95,
+                        colors: [
+                          _pink.withValues(alpha: 0.55),
+                          _pink.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                  LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      padding: const EdgeInsets.all(28),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight - 56,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          // Without a Truth/Dare badge the text sits in the
+                          // middle of the card.
+                          mainAxisAlignment: kind == null
+                              ? MainAxisAlignment.center
+                              : MainAxisAlignment.start,
+                          children: [
+                            if (kind != null) ...[
+                              _KindBadge(kind: kind, label: strings[kind]),
+                              const SizedBox(height: 32),
+                            ],
+                            Text(
+                              prompt.text,
+                              textAlign: TextAlign.center,
+                              style: style,
+                            ),
+                            if (prompt.optionB != null) ...[
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 20,
+                                ),
+                                child: Text(
+                                  strings['or'],
+                                  style: const TextStyle(
+                                    color: _accent,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                prompt.optionB!,
+                                textAlign: TextAlign.center,
+                                style: style,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
+        const Positioned(
+          left: 0,
+          right: 0,
+          bottom: -_waveOverhang,
+          height: 150,
+          child: IgnorePointer(
+            child: ClipPath(
+              clipper: _WaveClipper(_radius, _waveOverhang),
+              child: CustomPaint(painter: _WavePainter()),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "Truth" / "Dare" badge: violet glass with a lavender-to-pink border.
+class _KindBadge extends StatelessWidget {
+  const _KindBadge({required this.kind, required this.label});
+
+  final String kind;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      radius: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 14),
+      gradient: LinearGradient(
+        colors: [
+          const Color(0xFF8B5CF6).withValues(alpha: 0.5),
+          const Color(0xFF3A2470).withValues(alpha: 0.55),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderGradient: LinearGradient(
+        colors: [
+          _PromptCard._accent.withValues(alpha: 0.8),
+          _PromptCard._accent.withValues(alpha: 0.15),
+          _PromptCard._pink.withValues(alpha: 0.5),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            kind == 'truth'
+                ? Icons.chat_bubble_outline_rounded
+                : Icons.bolt_rounded,
+            color: _PromptCard._pink,
+            size: 26,
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Soft wave along the bottom of the card.
+/// Keeps the wave inside the card's rounded corners while letting it hang
+/// freely below the card's bottom edge.
+class _WaveClipper extends CustomClipper<Path> {
+  const _WaveClipper(this.radius, this.overhang);
+
+  final double radius;
+  final double overhang;
+
+  @override
+  Path getClip(Size size) {
+    final cardBottom = size.height - overhang;
+    final card = Path()
+      ..addRRect(
+        RRect.fromLTRBR(
+          0,
+          -size.height,
+          size.width,
+          cardBottom,
+          Radius.circular(radius),
+        ),
+      );
+    final below = Path()
+      ..addRect(Rect.fromLTRB(0, cardBottom, size.width, size.height));
+    return Path.combine(PathOperation.union, card, below);
+  }
+
+  @override
+  bool shouldReclip(_WaveClipper oldClipper) =>
+      oldClipper.radius != radius || oldClipper.overhang != overhang;
+}
+
+/// A translucent ribbon that rises from below the card's bottom edge on the
+/// left and sweeps up into the card on the right.
 class _WavePainter extends CustomPainter {
   const _WavePainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, size.height * 0.86)
+    final w = size.width;
+    final h = size.height;
+    Path curve(double dy) => Path()
+      ..moveTo(w * 0.04, h * 0.74 + dy)
       ..cubicTo(
-        size.width * 0.3,
-        size.height * 1.0,
-        size.width * 0.6,
-        size.height * 0.68,
-        size.width,
-        size.height * 0.82,
+        w * 0.36,
+        h * 0.80 + dy,
+        w * 0.6,
+        h * 0.30 + dy,
+        w,
+        h * 0.38 + dy,
+      );
+
+    final top = curve(0);
+    final bottom = curve(h * 0.17);
+    final ribbon = Path.from(top)
+      ..lineTo(w, h * 0.38 + h * 0.17)
+      ..cubicTo(
+        w * 0.6,
+        h * 0.30 + h * 0.17,
+        w * 0.36,
+        h * 0.80 + h * 0.17,
+        w * 0.04,
+        h * 0.74 + h * 0.17,
       )
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
       ..close();
+
     canvas.drawPath(
-      path,
+      ribbon,
       Paint()
         ..shader = LinearGradient(
           colors: [
             Colors.white.withValues(alpha: 0.0),
-            Colors.white.withValues(alpha: 0.10),
+            Colors.white.withValues(alpha: 0.0),
+            const Color(0xFFD59BFF).withValues(alpha: 0.10),
+            const Color(0xFFF06FB5).withValues(alpha: 0.26),
           ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          stops: const [0.0, 0.18, 0.55, 1.0],
         ).createShader(Offset.zero & size),
     );
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..shader = LinearGradient(
+        colors: [
+          Colors.white.withValues(alpha: 0.0),
+          Colors.white.withValues(alpha: 0.28),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(top, line);
+    canvas.drawPath(bottom, line..strokeWidth = 0.8);
   }
 
   @override
