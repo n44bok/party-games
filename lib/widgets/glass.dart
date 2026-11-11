@@ -7,11 +7,18 @@ const brandGradient = LinearGradient(
   end: Alignment.centerRight,
 );
 
-/// Primary button fill: violet to pink, left to right.
+/// Primary button fill: light violet at the top-left, a deeper blue-violet
+/// below it, then magenta and a coral-pink corner at the bottom-right.
 const primaryGradient = LinearGradient(
-  colors: [Color(0xFF7C5CFA), Color(0xFFB65CF0), Color(0xFFF06FB5)],
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
+  colors: [
+    Color(0xFF9D78F9),
+    Color(0xFF6A4FE0),
+    Color(0xFFB65CE8),
+    Color(0xFFF47C8A),
+  ],
+  stops: [0.0, 0.32, 0.7, 1.0],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
 );
 
 /// Hairline border: bright at the top-left, fading, with a pink return.
@@ -126,7 +133,8 @@ class GlassIconButton extends StatelessWidget {
   }
 }
 
-/// Full-width pill button with a smooth violet-to-pink fill and a soft glow.
+/// Full-width pill button: diagonal violet-to-coral fill, a thin light border
+/// that is brightest along the top edge, and a soft glow.
 class GradientButton extends StatelessWidget {
   const GradientButton({
     super.key,
@@ -145,49 +153,91 @@ class GradientButton extends StatelessWidget {
   final double height;
   final Gradient gradient;
 
+  static const _border = 1.2;
+
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(height / 2);
-    // Fill and glow share one box, so the shadow is not clipped (Ink would
-    // clip it). The Material above only hosts the tap ripple.
+    final outer = BorderRadius.circular(height / 2);
+    final inner = BorderRadius.circular(height / 2 - _border);
+    // The outer box draws the border gradient and the glow (a shadow must not
+    // sit under a clip). The inner box holds the fill and the tap ripple.
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: gradient,
-        borderRadius: radius,
+        borderRadius: outer,
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.7),
+            Colors.white.withValues(alpha: 0.22),
+            const Color(0xFFFFB3C8).withValues(alpha: 0.5),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFB65CF0).withValues(alpha: 0.35),
+            color: const Color(0xFF8A5CF0).withValues(alpha: 0.35),
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.all(_border),
+        child: ClipRRect(
+          borderRadius: inner,
           child: SizedBox(
-            height: height,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            height: height - 2 * _border,
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                if (icon != null) ...[
-                  Icon(icon, color: Colors.white),
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
+                // A faint light along the top edge.
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: FractionallySizedBox(
+                    heightFactor: 0.45,
+                    widthFactor: 1,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withValues(alpha: 0.14),
+                            Colors.white.withValues(alpha: 0),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                if (trailingIcon != null) ...[
-                  const SizedBox(width: 8),
-                  Icon(trailingIcon, color: Colors.white),
-                ],
+                Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    onTap: onPressed,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (icon != null) ...[
+                          Icon(icon, color: Colors.white),
+                          const SizedBox(width: 8),
+                        ],
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if (trailingIcon != null) ...[
+                          const SizedBox(width: 8),
+                          Icon(trailingIcon, color: Colors.white),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
