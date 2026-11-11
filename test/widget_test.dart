@@ -12,6 +12,7 @@ import 'package:party_games/screens/home_screen.dart';
 import 'package:party_games/screens/setup_screen.dart';
 import 'package:party_games/screens/spy_game_screen.dart';
 import 'package:party_games/spy/spy_round.dart';
+import 'package:party_games/widgets/glass.dart';
 import 'package:party_games/widgets/glass_pill.dart';
 
 import 'dart:math' show Random;
@@ -494,7 +495,13 @@ void main() {
       await tester.tap(find.byTooltip('Settings'));
       await settle(tester);
       expect(find.text('Settings'), findsWidgets);
-      for (final label in ['System default', 'English', 'Українська']) {
+      for (final label in [
+        'System default',
+        'English',
+        'Українська',
+        'Polski',
+        'Español',
+      ]) {
         expect(find.text(label), findsOneWidget);
       }
 
@@ -1902,5 +1909,66 @@ void main() {
       await tester.pump(const Duration(seconds: 15));
       expect(sounds.timeUps, 1); // the end still sounds
     });
+  });
+
+  group('new languages', () {
+    for (final entry in {
+      'pl': ('Polski', 'Szpieg', 'Prawda czy wyzwanie', 'Ustawienia'),
+      'es': ('Español', 'Espía', 'Verdad o reto', 'Ajustes'),
+    }.entries) {
+      final (name, spy, truthOrDare, settingsTitle) = entry.value;
+
+      testWidgets('${entry.key}: switching to it translates the app', (
+        tester,
+      ) async {
+        phone(tester);
+        final settings = SettingsController();
+        await tester.pumpWidget(
+          PartyGamesApp(repository: FakeRepository(), settings: settings),
+        );
+        await tester.tap(find.byTooltip('Settings'));
+        await settle(tester);
+        await tester.tap(find.text(name));
+        await settle(tester);
+        expect(settings.locale, Locale(entry.key));
+        expect(find.text(settingsTitle), findsWidgets);
+
+        await tester.tap(find.byTooltip('Back'));
+        await settle(tester);
+        expect(find.text(spy), findsOneWidget);
+        expect(find.text(truthOrDare), findsOneWidget);
+        expect(find.text('Party Games'), findsNothing); // split in two words
+        expect(find.text('Party'), findsOneWidget);
+      });
+
+      testWidgets('${entry.key}: a game loads its cards in that language', (
+        tester,
+      ) async {
+        phone(tester);
+        // The real files, not the fake repository: they must exist and load.
+        await tester.pumpWidget(
+          PartyGamesApp(
+            settings: SettingsController(locale: Locale(entry.key)),
+          ),
+        );
+        await openGame(tester, truthOrDare);
+        await settle(tester);
+        // The button's label is in this language, so find it by type.
+        final start = find.byType(GradientButton);
+        await tester.ensureVisible(start);
+        await tester.pump();
+        await tester.tap(start);
+        await tester.pump();
+        for (var i = 0; i < 100; i++) {
+          if (find.byType(CircularProgressIndicator).evaluate().isEmpty) break;
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 20)),
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.text('Could not load content'), findsNothing);
+      });
+    }
   });
 }

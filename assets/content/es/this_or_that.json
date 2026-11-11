@@ -1,0 +1,128 @@
+{
+ "friends": [
+  [
+   "Café",
+   "Té"
+  ],
+  [
+   "Gatos",
+   "Perros"
+  ],
+  [
+   "Verano",
+   "Invierno"
+  ],
+  [
+   "Montaña",
+   "Playa"
+  ],
+  [
+   "Madrugador",
+   "Noctámbulo"
+  ],
+  [
+   "Llamar",
+   "Escribir"
+  ],
+  [
+   "Libros",
+   "Películas"
+  ],
+  [
+   "Pizza",
+   "Hamburguesa"
+  ],
+  [
+   "Dulce",
+   "Salado"
+  ],
+  [
+   "Ciudad",
+   "Campo"
+  ]
+ ],
+ "party": [
+  [
+   "Pista de baile",
+   "Charla en el sofá"
+  ],
+  [
+   "Karaoke",
+   "Juegos de mesa"
+  ],
+  [
+   "Fiesta en casa",
+   "Discoteca"
+  ],
+  [
+   "Cócteles",
+   "Cerveza"
+  ],
+  [
+   "Ser el DJ",
+   "Ser el bailarín"
+  ],
+  [
+   "Planearlo todo",
+   "Dejarse llevar"
+  ],
+  [
+   "Llegar pronto",
+   "Llegar tarde"
+  ],
+  [
+   "Música alta",
+   "Charla tranquila"
+  ],
+  [
+   "Fiesta en la piscina",
+   "Hoguera"
+  ],
+  [
+   "Fiesta de disfraces",
+   "Fiesta normal"
+  ]
+ ],
+ "funny": [
+  [
+   "Tortitas",
+   "Gofres"
+  ],
+  [
+   "Calcetines con sandalias",
+   "Descalzo en la nieve"
+  ],
+  [
+   "Hablar como un pirata",
+   "Hablar como un robot"
+  ],
+  [
+   "Ser un gato",
+   "Ser un perro"
+  ],
+  [
+   "Cantar todo",
+   "Bailar todo"
+  ],
+  [
+   "Chocolate",
+   "Queso"
+  ],
+  [
+   "Cuchara gigante",
+   "Tenedor diminuto"
+  ],
+  [
+   "Payaso",
+   "Mimo"
+  ],
+  [
+   "Hamaca",
+   "Cama de cojines"
+  ],
+  [
+   "Kétchup en todo",
+   "Mayonesa en todo"
+  ]
+ ]
+}

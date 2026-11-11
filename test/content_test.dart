@@ -138,4 +138,48 @@ void main() {
       }
     });
   });
+
+  group('translations', () {
+    final english = Strings.tableFor('en');
+
+    for (final lang in Strings.supported) {
+      test('$lang has exactly the keys English has', () {
+        final table = Strings.tableFor(lang);
+        expect(
+          table.keys.toSet(),
+          english.keys.toSet(),
+          reason:
+              'missing: ${english.keys.toSet().difference(table.keys.toSet())}, '
+              'extra: ${table.keys.toSet().difference(english.keys.toSet())}',
+        );
+      });
+
+      test('$lang has no empty values and keeps every {placeholder}', () {
+        final table = Strings.tableFor(lang);
+        final placeholder = RegExp(r'\{[a-z]+\}');
+        for (final key in english.keys) {
+          final value = table[key]!;
+          expect(value.trim(), isNotEmpty, reason: '$lang/$key is empty');
+          expect(
+            placeholder.allMatches(value).map((m) => m.group(0)).toSet(),
+            placeholder
+                .allMatches(english[key]!)
+                .map((m) => m.group(0))
+                .toSet(),
+            reason: '$lang/$key must keep the same {placeholders} as English',
+          );
+        }
+      });
+    }
+
+    test('the app name is the same in every language', () {
+      for (final lang in Strings.supported) {
+        expect(Strings.tableFor(lang)['title'], 'Party Games');
+      }
+    });
+
+    test('the four launch languages are supported', () {
+      expect(Strings.supported, containsAll(['en', 'uk', 'pl', 'es']));
+    });
+  });
 }

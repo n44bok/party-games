@@ -1,0 +1,128 @@
+{
+ "friends": [
+  [
+   "Kawa",
+   "Herbata"
+  ],
+  [
+   "Koty",
+   "Psy"
+  ],
+  [
+   "Lato",
+   "Zima"
+  ],
+  [
+   "Góry",
+   "Plaża"
+  ],
+  [
+   "Ranny ptaszek",
+   "Nocny marek"
+  ],
+  [
+   "Telefon",
+   "SMS"
+  ],
+  [
+   "Książki",
+   "Filmy"
+  ],
+  [
+   "Pizza",
+   "Burger"
+  ],
+  [
+   "Słodkie",
+   "Słone"
+  ],
+  [
+   "Miasto",
+   "Wieś"
+  ]
+ ],
+ "party": [
+  [
+   "Parkiet",
+   "Rozmowa na kanapie"
+  ],
+  [
+   "Karaoke",
+   "Gry planszowe"
+  ],
+  [
+   "Domówka",
+   "Klub"
+  ],
+  [
+   "Koktajle",
+   "Piwo"
+  ],
+  [
+   "Być didżejem",
+   "Być tancerzem"
+  ],
+  [
+   "Planować wszystko",
+   "Płynąć z prądem"
+  ],
+  [
+   "Przyjść wcześniej",
+   "Przyjść później"
+  ],
+  [
+   "Głośna muzyka",
+   "Spokojna rozmowa"
+  ],
+  [
+   "Impreza przy basenie",
+   "Ognisko"
+  ],
+  [
+   "Impreza w przebraniach",
+   "Zwykła impreza"
+  ]
+ ],
+ "funny": [
+  [
+   "Naleśniki",
+   "Gofry"
+  ],
+  [
+   "Skarpetki do sandałów",
+   "Boso po śniegu"
+  ],
+  [
+   "Mówić jak pirat",
+   "Mówić jak robot"
+  ],
+  [
+   "Być kotem",
+   "Być psem"
+  ],
+  [
+   "Wszystko śpiewać",
+   "Wszystko tańczyć"
+  ],
+  [
+   "Czekolada",
+   "Ser"
+  ],
+  [
+   "Gigantyczna łyżka",
+   "Maleńki widelec"
+  ],
+  [
+   "Klaun",
+   "Mim"
+  ],
+  [
+   "Hamak",
+   "Łóżko z poduszek"
+  ],
+  [
+   "Keczup do wszystkiego",
+   "Majonez do wszystkiego"
+  ]
+ ]
+}

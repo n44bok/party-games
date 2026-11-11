@@ -1,0 +1,200 @@
+{
+ "friends": [
+  [
+   "Dostać milion dolarów teraz",
+   "Dostawać 5000 dolarów co miesiąc do końca życia"
+  ],
+  [
+   "Nigdy więcej nie korzystać z mediów społecznościowych",
+   "Nigdy więcej nie oglądać filmów"
+  ],
+  [
+   "Żyć bez muzyki",
+   "Żyć bez telewizji"
+  ],
+  [
+   "Mieć nieograniczone darmowe loty",
+   "Mieć darmowe jedzenie do końca życia"
+  ],
+  [
+   "Znać wszystkie języki",
+   "Grać na wszystkich instrumentach"
+  ],
+  [
+   "Mieć osobistego kucharza",
+   "Mieć osobistego kierowcę"
+  ],
+  [
+   "Mieszkać w górach",
+   "Mieszkać nad morzem"
+  ],
+  [
+   "Być najmądrzejszą osobą na świecie",
+   "Być najzabawniejszą osobą na świecie"
+  ],
+  [
+   "Żyć 100 lat w przeszłości",
+   "Żyć 100 lat w przyszłości"
+  ],
+  [
+   "Rok bez telefonu",
+   "Miesiąc bez przyjaciół"
+  ],
+  [
+   "Być sławnym, ale biednym",
+   "Być nieznanym, ale bogatym"
+  ],
+  [
+   "Mieć przycisk przewijania życia do tyłu",
+   "Mieć przycisk pauzy w życiu"
+  ],
+  [
+   "Podróżować tylko pociągiem",
+   "Podróżować tylko samolotem"
+  ],
+  [
+   "Nigdy nie czuć zimna",
+   "Nigdy nie czuć gorąca"
+  ],
+  [
+   "Stracić wszystkie zdjęcia",
+   "Stracić wszystkie wspomnienia z ostatniego roku"
+  ],
+  [
+   "Pracować 4 dni w tygodniu za mniej",
+   "Pracować 6 dni w tygodniu za więcej"
+  ],
+  [
+   "Nigdy nie stać w korkach",
+   "Nigdy nie stać w kolejkach"
+  ],
+  [
+   "Zdobyć Oscara",
+   "Zdobyć olimpijskie złoto"
+  ],
+  [
+   "Zrezygnować ze słodyczy na zawsze",
+   "Zrezygnować z kawy na zawsze"
+  ],
+  [
+   "Wstawać codziennie o 5 rano w świetnym humorze",
+   "Codziennie chodzić spać o 3 w nocy w świetnym humorze"
+  ],
+  [
+   "Zatrzymać wiek na 25 latach",
+   "Mieć nieograniczone pieniądze do 50. roku życia"
+  ],
+  [
+   "Mieszkać na bezludnej wyspie z najlepszym przyjacielem",
+   "Mieszkać samemu w mieście"
+  ],
+  [
+   "Umieć się teleportować",
+   "Umieć czytać w myślach"
+  ],
+  [
+   "Mieć darmowy dom, ale daleko od wszystkiego",
+   "Płacić czynsz w centrum miasta"
+  ],
+  [
+   "Przeżywać swój najlepszy dzień w kółko",
+   "Zobaczyć swoją przyszłość przez jeden dzień"
+  ],
+  [
+   "Nigdy więcej nie używać internetu",
+   "Nigdy więcej nie opuszczać swojego kraju"
+  ],
+  [
+   "Poznać swojego idola i się rozczarować",
+   "Nigdy go nie poznać"
+  ]
+ ],
+ "party": [
+  [
+   "Wiedzieć, jak umrzesz",
+   "Wiedzieć, kiedy umrzesz"
+  ],
+  [
+   "Zawsze mówić to, co myślisz",
+   "Nigdy więcej się nie odezwać"
+  ],
+  [
+   "Utknąć w windzie z szefem",
+   "Utknąć w windzie z byłym"
+  ],
+  [
+   "Umieć rozmawiać ze zwierzętami",
+   "Umieć rozmawiać ze zmarłymi"
+  ],
+  [
+   "Mieć wielkie wesele",
+   "Mieć malutki, tajny ślub"
+  ],
+  [
+   "Znać wszystkie sekrety swoich przyjaciół",
+   "Żeby przyjaciele znali wszystkie twoje"
+  ],
+  [
+   "Być zawsze za bardzo wystrojonym",
+   "Być zawsze za mało wystrojonym"
+  ],
+  [
+   "Mieć najlepszy głos na świecie",
+   "Mieć najlepsze ciało na świecie"
+  ]
+ ],
+ "funny": [
+  [
+   "Umieć latać",
+   "Być niewidzialnym"
+  ],
+  [
+   "Zawsze spóźniać się o 10 minut",
+   "Zawsze przychodzić 20 minut wcześniej"
+  ],
+  [
+   "Walczyć z jedną kaczką wielkości konia",
+   "Walczyć ze stoma końmi wielkości kaczki"
+  ],
+  [
+   "Jeść pizzę codziennie",
+   "Nigdy więcej nie jeść pizzy, ale jeść wszystko inne"
+  ],
+  [
+   "Mówić tylko szeptem",
+   "Mówić tylko krzykiem"
+  ],
+  [
+   "Mieć smoka jako zwierzaka",
+   "Mieć jednorożca jako zwierzaka"
+  ],
+  [
+   "Zawsze śpiewać zamiast mówić",
+   "Zawsze tańczyć, kiedy chodzisz"
+  ],
+  [
+   "Być superbohaterem bez sławy",
+   "Być gwiazdą bez supermocy"
+  ],
+  [
+   "Zawsze przegrywać w gry planszowe",
+   "Zawsze przegrywać w gry wideo"
+  ],
+  [
+   "Jeść tylko ostre jedzenie",
+   "Jeść tylko mdłe jedzenie"
+  ],
+  [
+   "Mieć oczy z tyłu głowy",
+   "Mieć dodatkową rękę"
+  ],
+  [
+   "Oglądać w kółko jeden film",
+   "Słuchać w kółko jednej piosenki"
+  ],
+  [
+   "Być znów dzieckiem z obecnym umysłem",
+   "Być dorosłym z energią dziecka"
+  ]
+ ]
+}

@@ -66,6 +66,8 @@ flutter:
   assets:
     - assets/content/en/
     - assets/content/uk/
+    - assets/content/pl/
+    - assets/content/es/
     - assets/images/
     - assets/sounds/
 
