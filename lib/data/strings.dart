@@ -6,10 +6,11 @@ import '../models/game_mode.dart';
 class Strings {
   Strings(this.code);
 
-  factory Strings.of(BuildContext context) =>
-      Strings(supported.contains(Localizations.localeOf(context).languageCode)
-          ? Localizations.localeOf(context).languageCode
-          : 'en');
+  factory Strings.of(BuildContext context) => Strings(
+    supported.contains(Localizations.localeOf(context).languageCode)
+        ? Localizations.localeOf(context).languageCode
+        : 'en',
+  );
 
   static const supported = ['en', 'uk'];
 
@@ -27,6 +28,10 @@ class Strings {
       'most_likely': 'Most Likely To',
       'truth_or_dare': 'Truth or Dare',
       'empty': 'No content available',
+      'all': 'All',
+      'friends': 'Friends',
+      'party': 'Party',
+      'funny': 'Funny',
     },
     'uk': {
       'title': 'Ігри для компанії',
@@ -39,6 +44,10 @@ class Strings {
       'most_likely': 'Хто найімовірніше',
       'truth_or_dare': 'Правда чи дія',
       'empty': 'Немає контенту',
+      'all': 'Усі',
+      'friends': 'Друзі',
+      'party': 'Вечірка',
+      'funny': 'Смішне',
     },
   };
 

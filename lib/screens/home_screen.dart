@@ -18,11 +18,11 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 12),
-              Text(s['title'],
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineLarge
-                      ?.copyWith(fontWeight: FontWeight.w800)),
+              Text(
+                s['title'],
+                style: Theme.of(context).textTheme.headlineLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 4),
               Text(s['subtitle'], style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 24),
@@ -37,7 +37,8 @@ class HomeScreen extends StatelessWidget {
                       title: s.modeName(mode),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                            builder: (_) => GameScreen(mode: mode)),
+                          builder: (_) => GameScreen(mode: mode),
+                        ),
                       ),
                     );
                   },
@@ -53,8 +54,11 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _ModeCard extends StatelessWidget {
-  const _ModeCard(
-      {required this.mode, required this.title, required this.onTap});
+  const _ModeCard({
+    required this.mode,
+    required this.title,
+    required this.onTap,
+  });
 
   final GameMode mode;
   final String title;
@@ -75,11 +79,14 @@ class _ModeCard extends StatelessWidget {
               Icon(mode.icon, size: 48, color: Colors.white),
               const SizedBox(width: 20),
               Expanded(
-                child: Text(title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700)),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               const Icon(Icons.chevron_right, color: Colors.white),
             ],

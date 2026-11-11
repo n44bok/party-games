@@ -3,32 +3,50 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:party_games/data/strings.dart';
+import 'package:party_games/models/game_mode.dart';
 
 void main() {
   const files = ['would_you_rather', 'most_likely', 'truth', 'dare'];
 
-  List<dynamic> read(String lang, String file) => jsonDecode(
-      File('assets/content/$lang/$file.json').readAsStringSync()) as List;
+  Map<String, dynamic> read(String lang, String file) =>
+      jsonDecode(File('assets/content/$lang/$file.json').readAsStringSync())
+          as Map<String, dynamic>;
 
   for (final file in files) {
-    test('$file: valid, unique, same size in every language', () {
-      final sizes = <int>{};
+    test('$file: valid categories, unique, same shape in every language', () {
+      final shapes = <String>{};
       for (final lang in Strings.supported) {
-        final items = read(lang, file);
-        expect(items, isNotEmpty);
-        expect(items.map((e) => e.toString()).toSet().length, items.length,
-            reason: 'duplicates in $lang/$file');
-        for (final item in items) {
-          if (file == 'would_you_rather') {
-            expect(item, isA<List>());
-            expect((item as List).length, 2);
-          } else {
-            expect(item, isA<String>());
+        final data = read(lang, file);
+        expect(
+          data.keys.toSet(),
+          Category.values.map((c) => c.id).toSet(),
+          reason: 'categories of $lang/$file',
+        );
+        final all = <String>[];
+        for (final entry in data.entries) {
+          expect(entry.value, isNotEmpty, reason: '${entry.key} is empty');
+          for (final item in entry.value as List) {
+            if (file == 'would_you_rather') {
+              expect(item, isA<List>());
+              expect((item as List).length, 2);
+            } else {
+              expect(item, isA<String>());
+            }
+            all.add(item.toString());
           }
         }
-        sizes.add(items.length);
+        expect(
+          all.toSet().length,
+          all.length,
+          reason: 'duplicates in $lang/$file',
+        );
+        shapes.add(
+          data.entries
+              .map((e) => '${e.key}:${(e.value as List).length}')
+              .join(','),
+        );
       }
-      expect(sizes.length, 1, reason: 'languages out of sync for $file');
+      expect(shapes.length, 1, reason: 'languages out of sync for $file');
     });
   }
 }

@@ -1,194 +1,200 @@
-[
- [
-  "Get $1,000,000 now",
-  "Get $5,000 every month for life"
+{
+ "friends": [
+  [
+   "Get $1,000,000 now",
+   "Get $5,000 every month for life"
+  ],
+  [
+   "Never use social media again",
+   "Never watch movies again"
+  ],
+  [
+   "Live without music",
+   "Live without TV"
+  ],
+  [
+   "Have unlimited free flights",
+   "Have free food for life"
+  ],
+  [
+   "Speak every language",
+   "Play every instrument"
+  ],
+  [
+   "Have a personal chef",
+   "Have a personal driver"
+  ],
+  [
+   "Live in the mountains",
+   "Live by the sea"
+  ],
+  [
+   "Be the smartest person alive",
+   "Be the funniest person alive"
+  ],
+  [
+   "Live 100 years in the past",
+   "Live 100 years in the future"
+  ],
+  [
+   "Have no phone for a year",
+   "Have no friends for a month"
+  ],
+  [
+   "Be famous but poor",
+   "Be unknown but rich"
+  ],
+  [
+   "Have a rewind button for your life",
+   "Have a pause button for your life"
+  ],
+  [
+   "Travel only by train",
+   "Travel only by plane"
+  ],
+  [
+   "Never feel cold",
+   "Never feel hot"
+  ],
+  [
+   "Lose all your photos",
+   "Lose all your memories of the last year"
+  ],
+  [
+   "Work 4 days a week for less pay",
+   "Work 6 days a week for more pay"
+  ],
+  [
+   "Never be stuck in traffic",
+   "Never wait in a line"
+  ],
+  [
+   "Win an Oscar",
+   "Win an Olympic gold medal"
+  ],
+  [
+   "Give up sweets forever",
+   "Give up coffee forever"
+  ],
+  [
+   "Wake up at 5 AM every day happily",
+   "Stay up until 3 AM every day happily"
+  ],
+  [
+   "Have a pause on your age at 25",
+   "Have unlimited money until you are 50"
+  ],
+  [
+   "Live on a deserted island with your best friend",
+   "Live in a city alone"
+  ],
+  [
+   "Be able to teleport",
+   "Be able to read minds"
+  ],
+  [
+   "Have a free house but far from everything",
+   "Pay rent in the city center"
+  ],
+  [
+   "Relive your best day forever",
+   "See your future for one day"
+  ],
+  [
+   "Never use the internet again",
+   "Never leave your country again"
+  ],
+  [
+   "Meet your hero and be disappointed",
+   "Never meet them"
+  ]
  ],
- [
-  "Be able to fly",
-  "Be invisible"
+ "party": [
+  [
+   "Know how you die",
+   "Know when you die"
+  ],
+  [
+   "Always say what you think",
+   "Never speak again"
+  ],
+  [
+   "Be stuck in an elevator with your boss",
+   "Be stuck in an elevator with your ex"
+  ],
+  [
+   "Be able to talk to animals",
+   "Be able to speak to the dead"
+  ],
+  [
+   "Have a huge wedding",
+   "Have a tiny secret wedding"
+  ],
+  [
+   "Know all the secrets of your friends",
+   "Have your friends know all of yours"
+  ],
+  [
+   "Be always overdressed",
+   "Be always underdressed"
+  ],
+  [
+   "Have the best voice in the world",
+   "Have the best body in the world"
+  ]
  ],
- [
-  "Never use social media again",
-  "Never watch movies again"
- ],
- [
-  "Always be 10 minutes late",
-  "Always be 20 minutes early"
- ],
- [
-  "Live without music",
-  "Live without TV"
- ],
- [
-  "Know how you die",
-  "Know when you die"
- ],
- [
-  "Have unlimited free flights",
-  "Have free food for life"
- ],
- [
-  "Speak every language",
-  "Play every instrument"
- ],
- [
-  "Have a personal chef",
-  "Have a personal driver"
- ],
- [
-  "Live in the mountains",
-  "Live by the sea"
- ],
- [
-  "Be the smartest person alive",
-  "Be the funniest person alive"
- ],
- [
-  "Always say what you think",
-  "Never speak again"
- ],
- [
-  "Fight one horse-sized duck",
-  "Fight a hundred duck-sized horses"
- ],
- [
-  "Live 100 years in the past",
-  "Live 100 years in the future"
- ],
- [
-  "Have no phone for a year",
-  "Have no friends for a month"
- ],
- [
-  "Be famous but poor",
-  "Be unknown but rich"
- ],
- [
-  "Eat pizza every day",
-  "Never eat pizza again but eat any other food freely"
- ],
- [
-  "Have a rewind button for your life",
-  "Have a pause button for your life"
- ],
- [
-  "Only whisper",
-  "Only shout"
- ],
- [
-  "Be stuck in an elevator with your boss",
-  "Be stuck in an elevator with your ex"
- ],
- [
-  "Travel only by train",
-  "Travel only by plane"
- ],
- [
-  "Never feel cold",
-  "Never feel hot"
- ],
- [
-  "Have a pet dragon",
-  "Have a pet unicorn"
- ],
- [
-  "Lose all your photos",
-  "Lose all your memories of the last year"
- ],
- [
-  "Work 4 days a week for less pay",
-  "Work 6 days a week for more pay"
- ],
- [
-  "Be able to talk to animals",
-  "Be able to speak to the dead"
- ],
- [
-  "Always have to sing instead of talking",
-  "Always have to dance when you walk"
- ],
- [
-  "Have a huge wedding",
-  "Have a tiny secret wedding"
- ],
- [
-  "Never be stuck in traffic",
-  "Never wait in a line"
- ],
- [
-  "Win an Oscar",
-  "Win an Olympic gold medal"
- ],
- [
-  "Give up sweets forever",
-  "Give up coffee forever"
- ],
- [
-  "Be a superhero with no fame",
-  "Be a celebrity with no powers"
- ],
- [
-  "Wake up at 5 AM every day happily",
-  "Stay up until 3 AM every day happily"
- ],
- [
-  "Have a pause on your age at 25",
-  "Have unlimited money until you are 50"
- ],
- [
-  "Know all the secrets of your friends",
-  "Have your friends know all of yours"
- ],
- [
-  "Live on a deserted island with your best friend",
-  "Live in a city alone"
- ],
- [
-  "Always lose at board games",
-  "Always lose at video games"
- ],
- [
-  "Be able to teleport",
-  "Be able to read minds"
- ],
- [
-  "Eat only spicy food",
-  "Eat only bland food"
- ],
- [
-  "Have a free house but far from everything",
-  "Pay rent in the city center"
- ],
- [
-  "Have eyes in the back of your head",
-  "Have an extra arm"
- ],
- [
-  "Relive your best day forever",
-  "See your future for one day"
- ],
- [
-  "Never use the internet again",
-  "Never leave your country again"
- ],
- [
-  "Be always overdressed",
-  "Be always underdressed"
- ],
- [
-  "Have the best voice in the world",
-  "Have the best body in the world"
- ],
- [
-  "Replay one movie forever",
-  "Replay one song forever"
- ],
- [
-  "Meet your hero and be disappointed",
-  "Never meet them"
- ],
- [
-  "Be a child again with your current mind",
-  "Be an adult with a child's energy"
+ "funny": [
+  [
+   "Be able to fly",
+   "Be invisible"
+  ],
+  [
+   "Always be 10 minutes late",
+   "Always be 20 minutes early"
+  ],
+  [
+   "Fight one horse-sized duck",
+   "Fight a hundred duck-sized horses"
+  ],
+  [
+   "Eat pizza every day",
+   "Never eat pizza again but eat any other food freely"
+  ],
+  [
+   "Only whisper",
+   "Only shout"
+  ],
+  [
+   "Have a pet dragon",
+   "Have a pet unicorn"
+  ],
+  [
+   "Always have to sing instead of talking",
+   "Always have to dance when you walk"
+  ],
+  [
+   "Be a superhero with no fame",
+   "Be a celebrity with no powers"
+  ],
+  [
+   "Always lose at board games",
+   "Always lose at video games"
+  ],
+  [
+   "Eat only spicy food",
+   "Eat only bland food"
+  ],
+  [
+   "Have eyes in the back of your head",
+   "Have an extra arm"
+  ],
+  [
+   "Replay one movie forever",
+   "Replay one song forever"
+  ],
+  [
+   "Be a child again with your current mind",
+   "Be an adult with a child's energy"
+  ]
  ]
-]
+}
