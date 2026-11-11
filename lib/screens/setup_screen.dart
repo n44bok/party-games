@@ -8,6 +8,7 @@ import '../widgets/category_chips.dart';
 import '../widgets/glass.dart';
 import '../widgets/glass_blob.dart';
 import '../widgets/glass_pill.dart';
+import '../widgets/multi_select.dart';
 import '../widgets/gradient_background.dart';
 import '../spy/spy_round.dart';
 import 'game_screen.dart';
@@ -142,6 +143,38 @@ class _SetupScreenState extends State<SetupScreen> {
     }
   });
 
+  /// Selects every ready-made category; if they all are selected already,
+  /// goes back to the default (Places). "My word" is left as it is.
+  void _selectAllCategories() => setState(() {
+    final builtIn = SpyCategory.builtIn;
+    if (builtIn.every(_spyCategories.contains)) {
+      _spyCategories
+        ..removeAll(builtIn)
+        ..add(SpyCategory.places);
+    } else {
+      _spyCategories.addAll(builtIn);
+    }
+  });
+
+  /// What the closed field says: "All categories", or the first two chosen
+  /// followed by how many more there are.
+  String _categorySummary(Strings s) {
+    final builtIn = [
+      for (final c in SpyCategory.builtIn)
+        if (_spyCategories.contains(c)) c,
+    ];
+    final names = [
+      if (builtIn.length == SpyCategory.builtIn.length)
+        s['spy_all_categories']
+      else
+        for (final c in builtIn) s[c.labelKey],
+      if (_spyCategories.contains(SpyCategory.single))
+        s[SpyCategory.single.labelKey],
+    ];
+    if (names.length <= 2) return names.join(', ');
+    return '${names[0]}, ${names[1]} +${names.length - 2}';
+  }
+
   /// The options below the player list: content categories for the card
   /// games, spies and timer for Spy.
   List<Widget> _modeOptions(Strings s, ThemeData theme) {
@@ -174,11 +207,27 @@ class _SetupScreenState extends State<SetupScreen> {
       divider,
       header(Icons.category_outlined, s['spy_words']),
       const SizedBox(height: 14),
-      MultiPillWrap<SpyCategory>(
-        key: const Key('spyCategoryPills'),
-        options: [for (final c in SpyCategory.values) (c, s[c.labelKey])],
+      MultiSelectField<SpyCategory>(
+        fieldKey: const Key('spyCategorySelector'),
+        options: [
+          for (final c in SpyCategory.builtIn)
+            MultiSelectOption(value: c, id: c.id, label: s[c.labelKey]),
+          // The players' own word sits apart from the ready-made categories.
+          MultiSelectOption(
+            value: SpyCategory.single,
+            id: SpyCategory.single.id,
+            label: s[SpyCategory.single.labelKey],
+            separated: true,
+          ),
+        ],
         selected: _spyCategories,
+        summary: _categorySummary(s),
+        title: s['spy_pick_categories'],
+        selectAllLabel: s['select_all'],
+        doneLabel: s['done'],
         onToggle: _toggleCategory,
+        onSelectAll: _selectAllCategories,
+        allSelected: () => SpyCategory.builtIn.every(_spyCategories.contains),
       ),
       // "My word" is one of the choices, so its field is right there as soon
       // as it is selected.

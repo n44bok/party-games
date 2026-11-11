@@ -151,6 +151,59 @@ void spyPhone(WidgetTester tester) {
   addTearDown(tester.view.reset);
 }
 
+/// The category multi-select. It sits low on the Spy setup page.
+Finder get categoryField => find.byKey(const Key('spyCategorySelector'));
+
+/// The row of option [id] (e.g. `food`, `single`) in the open list.
+Finder categoryOption(String id) => find.byKey(ValueKey('option_$id'));
+
+/// Whether option [id] has a check mark in the open list.
+bool categoryChecked(String id) => find
+    .descendant(
+      of: categoryOption(id),
+      matching: find.byKey(const Key('checkMark')),
+    )
+    .evaluate()
+    .isNotEmpty;
+
+/// What the closed field says ("Places, Food +1", "All categories", ...).
+String categorySummary(WidgetTester tester) => tester
+    .widget<Text>(
+      find.descendant(of: categoryField, matching: find.byType(Text)),
+    )
+    .data!;
+
+Future<void> openCategories(WidgetTester tester) async {
+  await tester.ensureVisible(categoryField);
+  await tester.pump();
+  await tester.tap(categoryField);
+  await settle(tester);
+}
+
+/// Taps one option in the open list.
+Future<void> toggleCategory(WidgetTester tester, String id) async {
+  await tester.ensureVisible(categoryOption(id));
+  await tester.pump();
+  await tester.tap(categoryOption(id));
+  await tester.pump();
+}
+
+Future<void> closeCategories(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('multiSelectDone')));
+  await settle(tester);
+}
+
+/// Opens the list, switches Places off and [id] on, and closes it again: only
+/// that category is chosen.
+Future<void> chooseOnlyCategory(WidgetTester tester, String id) async {
+  await openCategories(tester);
+  if (id != 'places') {
+    await toggleCategory(tester, id);
+    await toggleCategory(tester, 'places');
+  }
+  await closeCategories(tester);
+}
+
 /// Opens a game from the home grid. With seven cards the last ones are below
 /// the fold in a phone-sized window, so scroll to the card first.
 Future<void> openGame(WidgetTester tester, String title) async {
@@ -1007,7 +1060,7 @@ void main() {
       expect(enabled(tester, pills('spyCountPills', '2')), isFalse);
     });
 
-    /// Pill label -> category id, for every ready-made category.
+    /// Label -> category id, for every ready-made category.
     const categoryLabels = {
       'Places': 'places',
       'Food': 'food',
@@ -1031,57 +1084,146 @@ void main() {
       'Sea': 'sea',
     };
 
-    /// Turns on [label] and turns Places (on by default) off, so that only
-    /// this category is chosen.
-    Future<void> chooseOnly(WidgetTester tester, String label) async {
-      if (label != 'Places') {
-        await tapPill(tester, pills('spyCategoryPills', label));
-        await tapPill(tester, pills('spyCategoryPills', 'Places'));
-      }
-    }
-
-    testWidgets('twenty word categories plus your own, Places by default', (
+    testWidgets('a field sums up the choice: Places by default', (
       tester,
     ) async {
       await openSpy(tester);
-      for (final label in [...categoryLabels.keys, 'My word']) {
-        expect(pills('spyCategoryPills', label), findsOneWidget);
-      }
-      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
-      expect(selected(tester, pills('spyCategoryPills', 'Food')), isFalse);
+      expect(categoryField, findsOneWidget);
+      expect(categorySummary(tester), 'Places');
+      // It is a field to open, not a row of buttons.
+      expect(find.byKey(const Key('spyCategoryPills')), findsNothing);
     });
 
-    testWidgets('categories are a multi-select', (tester) async {
+    testWidgets('it opens a list with every category and "My word"', (
+      tester,
+    ) async {
       await openSpy(tester);
+      await openCategories(tester);
 
-      // Tapping another one adds it; the first stays chosen.
-      await tapPill(tester, pills('spyCategoryPills', 'Food'));
-      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
-      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
-      await tapPill(tester, pills('spyCategoryPills', 'Sea'));
-      expect(selected(tester, pills('spyCategoryPills', 'Sea')), isTrue);
+      expect(find.text('Choose categories'), findsOneWidget);
+      expect(find.text('Select all'), findsOneWidget);
+      for (final entry in categoryLabels.entries) {
+        await tester.ensureVisible(categoryOption(entry.value));
+        expect(categoryOption(entry.value), findsOneWidget, reason: entry.key);
+        expect(
+          find.descendant(
+            of: categoryOption(entry.value),
+            matching: find.text(entry.key),
+          ),
+          findsOneWidget,
+        );
+      }
+      await tester.ensureVisible(categoryOption('single'));
+      expect(categoryOption('single'), findsOneWidget);
 
-      // Tapping a chosen one removes it.
-      await tapPill(tester, pills('spyCategoryPills', 'Places'));
-      expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
-      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
-      expect(selected(tester, pills('spyCategoryPills', 'Sea')), isTrue);
+      // Places is on, the rest off.
+      expect(categoryChecked('places'), isTrue);
+      expect(categoryChecked('food'), isFalse);
+      expect(categoryChecked('single'), isFalse);
+    });
+
+    testWidgets('several can be chosen, and the field lists them', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      await openCategories(tester);
+
+      await toggleCategory(tester, 'food');
+      expect(categoryChecked('food'), isTrue);
+      expect(categoryChecked('places'), isTrue); // the first stays on
+      await toggleCategory(tester, 'sea');
+      expect(categoryChecked('sea'), isTrue);
+
+      // Switching one off leaves the others.
+      await toggleCategory(tester, 'places');
+      expect(categoryChecked('places'), isFalse);
+      expect(categoryChecked('food'), isTrue);
+      expect(categoryChecked('sea'), isTrue);
+
+      await closeCategories(tester);
+      // The closed field says what is chosen: two names, then "+ how many more".
+      expect(categorySummary(tester), 'Food, Sea');
+      await openCategories(tester);
+      await toggleCategory(tester, 'space');
+      await toggleCategory(tester, 'jobs');
+      await closeCategories(tester);
+      // In the order of the list (Food comes before Jobs, Sea, Space).
+      expect(categorySummary(tester), 'Food, Jobs +2');
+    });
+
+    testWidgets('the list closes with Done', (tester) async {
+      await openSpy(tester);
+      await openCategories(tester);
+      expect(find.text('Choose categories'), findsOneWidget);
+      await closeCategories(tester);
+      expect(find.text('Choose categories'), findsNothing);
     });
 
     testWidgets('the last chosen category cannot be switched off', (
       tester,
     ) async {
       await openSpy(tester);
+      await openCategories(tester);
       // Only Places is on: tapping it does nothing.
-      await tapPill(tester, pills('spyCategoryPills', 'Places'));
-      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
+      await toggleCategory(tester, 'places');
+      expect(categoryChecked('places'), isTrue);
 
       // Two on: one can go, the remaining one then stays.
-      await tapPill(tester, pills('spyCategoryPills', 'Food'));
-      await tapPill(tester, pills('spyCategoryPills', 'Places'));
-      expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
-      await tapPill(tester, pills('spyCategoryPills', 'Food'));
-      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
+      await toggleCategory(tester, 'food');
+      await toggleCategory(tester, 'places');
+      expect(categoryChecked('places'), isFalse);
+      await toggleCategory(tester, 'food');
+      expect(categoryChecked('food'), isTrue);
+    });
+
+    testWidgets('"Select all" picks every category, and again resets', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      await openCategories(tester);
+      final selectAll = find.byKey(const Key('multiSelectAll'));
+      bool allChecked() => find
+          .descendant(
+            of: selectAll,
+            matching: find.byKey(const Key('checkMark')),
+          )
+          .evaluate()
+          .isNotEmpty;
+      expect(allChecked(), isFalse);
+
+      await tester.tap(selectAll);
+      await tester.pump();
+      expect(allChecked(), isTrue);
+      for (final id in categoryLabels.values) {
+        await tester.ensureVisible(categoryOption(id));
+        expect(categoryChecked(id), isTrue, reason: id);
+      }
+      // "My word" is its own choice and is not part of "all".
+      await tester.ensureVisible(categoryOption('single'));
+      expect(categoryChecked('single'), isFalse);
+
+      await closeCategories(tester);
+      expect(categorySummary(tester), 'All categories');
+
+      // Again: back to the default.
+      await openCategories(tester);
+      await tester.tap(selectAll);
+      await tester.pump();
+      expect(allChecked(), isFalse);
+      expect(categoryChecked('places'), isTrue);
+      expect(categoryChecked('food'), isFalse);
+      await closeCategories(tester);
+      expect(categorySummary(tester), 'Places');
+    });
+
+    testWidgets('"Select all" leaves "My word" as it was', (tester) async {
+      await openSpy(tester);
+      await openCategories(tester);
+      await toggleCategory(tester, 'single');
+      await tester.tap(find.byKey(const Key('multiSelectAll')));
+      await tester.pump();
+      await closeCategories(tester);
+      expect(categorySummary(tester), 'All categories, My word');
     });
 
     for (final entry in categoryLabels.entries) {
@@ -1089,7 +1231,7 @@ void main() {
         tester,
       ) async {
         await openSpy(tester);
-        await chooseOnly(tester, entry.key);
+        await chooseOnlyCategory(tester, entry.value);
         await startGame(tester);
         await settle(tester);
         await settle(tester);
@@ -1116,8 +1258,10 @@ void main() {
       tester,
     ) async {
       await openSpy(tester);
-      await tapPill(tester, pills('spyCategoryPills', 'Food'));
-      await tapPill(tester, pills('spyCategoryPills', 'Space'));
+      await openCategories(tester);
+      await toggleCategory(tester, 'food');
+      await toggleCategory(tester, 'space');
+      await closeCategories(tester);
       await startGame(tester);
       await settle(tester);
       await settle(tester);
@@ -1523,11 +1667,6 @@ void main() {
   });
 
   group('my word (one word for this game)', () {
-    Finder categoryPill(String label) => find.descendant(
-      of: find.byKey(const Key('spyCategoryPills')),
-      matching: find.text(label),
-    );
-
     Future<SettingsController> openSetup(WidgetTester tester) async {
       spyPhone(tester);
       final settings = SettingsController();
@@ -1543,27 +1682,28 @@ void main() {
       await openSetup(tester);
       expect(find.byKey(const Key('singleWordField')), findsNothing);
 
-      await tester.tap(categoryPill('My word'));
-      await tester.pump();
+      // Chosen in the list: the field is there at once, with the list still
+      // open.
+      await openCategories(tester);
+      await toggleCategory(tester, 'single');
       expect(find.byKey(const Key('singleWordField')), findsOneWidget);
       // No explanatory note under the field.
       expect(find.text('Used only for this game, not saved'), findsNothing);
 
       // Other categories can be added; the field stays while "My word" is on.
-      await tester.tap(categoryPill('Food'));
-      await tester.pump();
+      await toggleCategory(tester, 'food');
       expect(find.byKey(const Key('singleWordField')), findsOneWidget);
 
       // Switching "My word" off takes the field away again.
-      await tester.tap(categoryPill('My word'));
-      await tester.pump();
+      await toggleCategory(tester, 'single');
       expect(find.byKey(const Key('singleWordField')), findsNothing);
     });
 
     testWidgets('the game needs the word first', (tester) async {
       await openSetup(tester);
-      await tester.tap(categoryPill('My word'));
-      await tester.pump();
+      await openCategories(tester);
+      await toggleCategory(tester, 'single');
+      await closeCategories(tester);
 
       await startGame(tester);
       await tester.pump();
@@ -1579,10 +1719,10 @@ void main() {
 
     testWidgets('everyone but the spy sees exactly that word', (tester) async {
       await openSetup(tester);
-      await tester.tap(categoryPill('My word'));
-      await tester.pump();
-      await tester.tap(categoryPill('Places')); // only "My word" stays on
-      await tester.pump();
+      await openCategories(tester);
+      await toggleCategory(tester, 'single');
+      await toggleCategory(tester, 'places'); // only "My word" stays on
+      await closeCategories(tester);
       await tester.enterText(
         find.byKey(const Key('singleWordField')),
         '  Mars   rover ',
@@ -1617,8 +1757,9 @@ void main() {
       await tester.pumpAndSettle();
       await openGame(tester, 'Spy');
       await settle(tester);
-      await tester.tap(categoryPill('My word'));
-      await tester.pump();
+      await openCategories(tester);
+      await toggleCategory(tester, 'single');
+      await closeCategories(tester);
       final field = tester.widget<TextField>(
         find.byKey(const Key('singleWordField')),
       );

@@ -11,17 +11,12 @@ class GlassPill extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.enabled = true,
-    this.expand = true,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final bool enabled;
-
-  /// Fill the width it is given (for rows of evenly spread pills) rather than
-  /// being as wide as its label (for pills that wrap onto several lines).
-  final bool expand;
 
   Widget get _label => Text(
     label,
@@ -45,8 +40,8 @@ class GlassPill extends StatelessWidget {
           opacity: enabled ? 1 : 0.35,
           child: Container(
             height: 44,
-            padding: EdgeInsets.symmetric(horizontal: expand ? 6 : 18),
-            alignment: expand ? Alignment.center : null,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
               gradient: selected
@@ -69,9 +64,7 @@ class GlassPill extends StatelessWidget {
                     ]
                   : null,
             ),
-            child: expand
-                ? FittedBox(fit: BoxFit.scaleDown, child: _label)
-                : Center(widthFactor: 1, child: _label),
+            child: FittedBox(fit: BoxFit.scaleDown, child: _label),
           ),
         ),
       ),
@@ -112,73 +105,6 @@ class OptionPills<T> extends StatelessWidget {
             ),
           ),
         ],
-      ],
-    );
-  }
-}
-
-/// [GlassPill]s for choosing one value, wrapping onto as many lines as needed.
-/// Use this instead of [OptionPills] when there are too many options for a row.
-class PillWrap<T> extends StatelessWidget {
-  const PillWrap({
-    super.key,
-    required this.options,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  /// (value, label) pairs, in display order.
-  final List<(T, String)> options;
-  final T selected;
-  final ValueChanged<T> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final (value, label) in options)
-          GlassPill(
-            label: label,
-            selected: value == selected,
-            expand: false,
-            onTap: () => onSelected(value),
-          ),
-      ],
-    );
-  }
-}
-
-/// [GlassPill]s for choosing any number of values, wrapping onto as many lines
-/// as needed. Tapping a pill reports it through [onToggle]; the caller decides
-/// what that does (for instance refusing to clear the last one).
-class MultiPillWrap<T> extends StatelessWidget {
-  const MultiPillWrap({
-    super.key,
-    required this.options,
-    required this.selected,
-    required this.onToggle,
-  });
-
-  /// (value, label) pairs, in display order.
-  final List<(T, String)> options;
-  final Set<T> selected;
-  final ValueChanged<T> onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final (value, label) in options)
-          GlassPill(
-            label: label,
-            selected: selected.contains(value),
-            expand: false,
-            onTap: () => onToggle(value),
-          ),
       ],
     );
   }
