@@ -5,6 +5,7 @@ import 'package:party_games/ads/ad_service.dart';
 import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
+import 'package:party_games/mafia/mafia_game.dart';
 import 'package:party_games/mafia/mafia_round.dart';
 import 'package:party_games/models/game_mode.dart';
 import 'package:party_games/screens/game_screen.dart';
@@ -1963,6 +1964,62 @@ void main() {
       }
     });
 
+    group('MafiaGame', () {
+      MafiaGame game({bool doctor = true}) => MafiaGame(
+        MafiaRound.start(
+          players: 7,
+          mafia: 2,
+          doctor: doctor,
+          random: Random(3),
+        ),
+      );
+
+      test('the mafia can only choose among the others', () {
+        final g = game();
+        expect(g.aliveNonMafia, hasLength(5));
+        expect(g.aliveNonMafia.any(g.isMafia), isFalse);
+      });
+
+      test('a night eliminates the victim unless the doctor saves them', () {
+        final g = game();
+        final victim = g.aliveNonMafia.first;
+        expect(g.resolveNight(victim: victim, saved: victim), isNull);
+        expect(g.isAlive(victim), isTrue);
+
+        final other = g.aliveNonMafia.last;
+        expect(g.resolveNight(victim: other, saved: victim), other);
+        expect(g.isAlive(other), isFalse);
+        expect(g.alive, hasLength(6));
+      });
+
+      test('a dead doctor saves nobody', () {
+        final g = game();
+        final doctor = g.round.roles.indexOf(MafiaRole.doctor);
+        g.voteOut(doctor);
+        expect(g.doctorAlive, isFalse);
+        final victim = g.aliveNonMafia.first;
+        expect(g.resolveNight(victim: victim, saved: victim), victim);
+      });
+
+      test('the citizens win when the mafia is gone', () {
+        final g = game();
+        expect(g.winner, isNull);
+        for (final i in g.round.mafiaIndexes) {
+          g.voteOut(i);
+        }
+        expect(g.winner, MafiaSide.citizens);
+      });
+
+      test('the mafia win once they equal the others', () {
+        final g = game(); // 2 mafia, 5 others
+        g.voteOut(g.aliveNonMafia.first);
+        g.voteOut(g.aliveNonMafia.first);
+        expect(g.winner, isNull); // 2 against 3
+        g.voteOut(g.aliveNonMafia.first);
+        expect(g.winner, MafiaSide.mafia); // 2 against 2
+      });
+    });
+
     testWidgets('is the second game and starts with six players', (
       tester,
     ) async {
@@ -1985,11 +2042,22 @@ void main() {
       );
     });
 
-    testWidgets('plays through roles, day and the result', (tester) async {
+    /// Opens the Mafia setup, optionally switches the app's night narration
+    /// off, starts the game and passes the phone round all six players.
+    Future<List<String>> startAndReveal(
+      WidgetTester tester, {
+      bool appRunsNights = true,
+    }) async {
       spyPhone(tester);
       await tester.pumpWidget(app());
       await openGame(tester, 'Mafia');
       await settle(tester);
+      if (!appRunsNights) {
+        await tester.ensureVisible(find.byKey(const Key('nightsSwitch')));
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('nightsSwitch')));
+        await tester.pump();
+      }
       await startGame(tester);
       await settle(tester);
 
@@ -2016,6 +2084,34 @@ void main() {
       expect(roles.where((r) => r == 'Doctor'), hasLength(1));
       expect(roles.where((r) => r == 'Detective'), hasLength(1));
       expect(roles.where((r) => r == 'Citizen'), hasLength(3));
+      return roles;
+    }
+
+    final picks = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('pick'),
+    );
+
+    String title(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('mafiaTitle'))).data!;
+
+    Future<void> tapText(WidgetTester tester, String text) async {
+      await tester.tap(find.text(text));
+      await settle(tester);
+    }
+
+    testWidgets('with a host: roles, day and the result', (tester) async {
+      await startAndReveal(tester, appRunsNights: false);
+      // The phone goes to the host first, who then sees everything.
+      expect(find.byKey(const Key('mafiaHostName')), findsOneWidget);
+      expect(find.byKey(const Key('mafiaTimer')), findsNothing);
+      await tapText(tester, 'Show my role');
+      expect(find.text('Roles for the host'), findsOneWidget);
+      for (var i = 0; i < 6; i++) {
+        expect(find.byKey(Key('mafiaListRole$i')), findsOneWidget);
+      }
+      await tapText(tester, 'Hide and start');
 
       // The day: a timer and which roles are in play.
       expect(find.text('8:00'), findsOneWidget);
@@ -2024,52 +2120,96 @@ void main() {
       await tester.pump();
       expect(find.text('Time is up! Vote someone out.'), findsOneWidget);
 
-      await tester.tap(find.text('Show all roles'));
-      await settle(tester);
+      await tapText(tester, 'Show all roles');
       for (var i = 0; i < 6; i++) {
         expect(find.byKey(Key('mafiaListRole$i')), findsOneWidget);
       }
 
       // Finish goes all the way home.
-      await tester.tap(find.text('Finish'));
-      await settle(tester);
+      await tapText(tester, 'Finish');
       expect(find.byType(HomeScreen), findsOneWidget);
     });
 
-    testWidgets('a host sees all the roles before the day starts', (
-      tester,
-    ) async {
-      spyPhone(tester);
-      await tester.pumpWidget(app());
-      await openGame(tester, 'Mafia');
-      await settle(tester);
-      await tester.ensureVisible(find.byKey(const Key('hostSwitch')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('hostSwitch')));
-      await tester.pump();
-      await startGame(tester);
-      await settle(tester);
+    testWidgets('the app runs the first night and the morning', (tester) async {
+      await startAndReveal(tester);
 
-      for (var i = 0; i < 6; i++) {
-        await tester.tap(find.text('Show my role'));
-        await settle(tester);
-        await tester.tap(
-          find.text(i == 5 ? 'Hide and start' : 'Hide and pass on'),
-        );
-        await settle(tester);
-      }
-      // The phone goes to the host first, who then sees everything.
-      expect(find.byKey(const Key('mafiaHostName')), findsOneWidget);
-      expect(find.byKey(const Key('mafiaTimer')), findsNothing);
-      await tester.tap(find.text('Show my role'));
+      expect(title(tester), 'Night 1');
+      await tapText(tester, 'Continue');
+
+      // The mafia choose among the others: five of the six players.
+      expect(title(tester), 'Mafia, wake up');
+      expect(picks, findsNWidgets(5));
+      // Nothing happens until someone is picked.
+      await tester.tap(find.byKey(const Key('mafiaConfirm')));
       await settle(tester);
-      expect(find.text('Roles for the host'), findsOneWidget);
+      expect(title(tester), 'Mafia, wake up');
+      await tester.tap(picks.first);
+      await tester.pump();
+      await tapText(tester, 'Confirm');
+
+      // The doctor and the detective may pick anyone still in.
+      expect(title(tester), 'Doctor, wake up');
+      expect(picks, findsNWidgets(6));
+      await tester.tap(picks.first);
+      await tester.pump();
+      await tapText(tester, 'Confirm');
+
+      expect(title(tester), 'Detective, wake up');
+      await tester.tap(picks.first);
+      await tester.pump();
+      await tapText(tester, 'Confirm');
+      final check = tester
+          .widget<Text>(find.byKey(const Key('mafiaCheck')))
+          .data!;
+      expect(check, anyOf(endsWith('is mafia'), endsWith('is not mafia')));
+      await tapText(tester, 'Continue');
+
+      // Morning: somebody was eliminated, or the doctor saved them.
+      expect(title(tester), 'Morning');
+      expect(
+        tester.widget<Text>(find.byKey(const Key('mafiaMorning'))).data,
+        anyOf(
+          endsWith('was eliminated last night.'),
+          'Nobody was eliminated last night.',
+        ),
+      );
+      await tapText(tester, 'Continue');
+      expect(find.byKey(const Key('mafiaTimer')), findsOneWidget);
+    });
+
+    testWidgets('a whole game runs to a winner', (tester) async {
+      await startAndReveal(tester);
+      final winner = find.byKey(const Key('mafiaWinner'));
+      for (var step = 0; step < 300 && winner.evaluate().isEmpty; step++) {
+        if (picks.evaluate().isNotEmpty) {
+          await tester.tap(picks.first);
+          await tester.pump();
+          // The vote's button reads differently.
+          await tapText(
+            tester,
+            find.text('Vote out').evaluate().isNotEmpty
+                ? 'Vote out'
+                : 'Confirm',
+          );
+        } else if (find.byKey(const Key('mafiaTimer')).evaluate().isNotEmpty) {
+          await tapText(tester, 'Go to the vote');
+        } else {
+          await tapText(tester, 'Continue');
+        }
+      }
+      expect(winner, findsOneWidget);
+      expect(
+        tester.widget<Text>(winner).data,
+        anyOf('The citizens win!', 'The mafia wins!'),
+      );
+      // Everyone's role is listed, with those who are out marked.
       for (var i = 0; i < 6; i++) {
         expect(find.byKey(Key('mafiaListRole$i')), findsOneWidget);
       }
-      await tester.tap(find.text('Hide and start'));
-      await settle(tester);
-      expect(find.byKey(const Key('mafiaTimer')), findsOneWidget);
+      expect(find.textContaining('· Out'), findsAtLeastNWidgets(1));
+
+      await tapText(tester, 'Play again');
+      expect(find.byKey(const Key('mafiaPassName')), findsOneWidget);
     });
 
     testWidgets('its rules are explained in the help popover', (tester) async {

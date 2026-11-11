@@ -51,7 +51,7 @@ class _SetupScreenState extends State<SetupScreen> {
   int _mafia = 1;
   bool _doctor = true;
   bool _detective = true;
-  bool _withHost = false;
+  bool _appRunsNights = true;
 
   /// The time warning is part of this game's options; the choice is
   /// remembered between games.
@@ -128,7 +128,7 @@ class _SetupScreenState extends State<SetupScreen> {
             mafia: _mafia,
             doctor: _doctor,
             detective: _detective,
-            withHost: _withHost,
+            appRunsNights: _appRunsNights,
             duration: Duration(minutes: _minutes),
           ),
           GameMode.spy => SpyGameScreen(
@@ -326,11 +326,11 @@ class _SetupScreenState extends State<SetupScreen> {
       const SizedBox(height: 14),
       _OptionSwitchRow(
         icon: Icons.record_voice_over_outlined,
-        title: s['host_option'],
-        description: s['host_option_desc'],
-        switchKey: const Key('hostSwitch'),
-        value: _withHost,
-        onChanged: (v) => setState(() => _withHost = v),
+        title: s['app_nights_option'],
+        description: s['app_nights_option_desc'],
+        switchKey: const Key('nightsSwitch'),
+        value: _appRunsNights,
+        onChanged: (v) => setState(() => _appRunsNights = v),
       ),
       const SizedBox(height: 24),
       header(Icons.timer_outlined, s['timer']),

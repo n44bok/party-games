@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../ads/ad_service.dart';
 import '../data/settings.dart';
 import '../data/strings.dart';
+import '../mafia/mafia_game.dart';
 import '../mafia/mafia_round.dart';
 import '../models/game_mode.dart';
 import '../sound/sound_service.dart';
@@ -14,16 +15,29 @@ import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/round_parts.dart';
 
-enum _Phase { reveal, host, day, result }
+enum _Phase {
+  reveal,
+  host,
+  nightIntro,
+  nightMafia,
+  nightDoctor,
+  nightDetective,
+  morning,
+  day,
+  vote,
+  voted,
+  result,
+}
 
 /// The whole Mafia game on one screen.
 ///
 /// 1. **Reveal:** the phone is passed around; each player taps to see their
 ///    secret role (the mafia also see who else is mafia) and hides it again.
-/// 2. **Host** (optional): a separate host sees everyone's roles.
-/// 3. **Day:** a countdown while everyone discusses and votes. The nights are
-///    run by the players or the host; the app does not narrate them.
-/// 4. **Result:** every player's role; play again with fresh roles.
+/// 2. **Nights** (when the app runs them): everyone closes their eyes and the
+///    app calls the mafia, the doctor and the detective in turn.
+///    Otherwise a host sees all the roles and runs the nights.
+/// 3. **Day:** a countdown while everyone discusses, then a vote.
+/// 4. **Result:** who won and every player's role; play again.
 class MafiaGameScreen extends StatefulWidget {
   const MafiaGameScreen({
     super.key,
@@ -32,7 +46,7 @@ class MafiaGameScreen extends StatefulWidget {
     required this.duration,
     this.doctor = true,
     this.detective = true,
-    this.withHost = false,
+    this.appRunsNights = true,
     this.random,
   });
 
@@ -42,8 +56,9 @@ class MafiaGameScreen extends StatefulWidget {
   final bool doctor;
   final bool detective;
 
-  /// A separate host sees all the roles after the players have seen theirs.
-  final bool withHost;
+  /// The app narrates the nights and keeps track of who is out. When it does
+  /// not, a separate host sees all the roles and runs the game by hand.
+  final bool appRunsNights;
 
   /// How long the day discussion lasts.
   final Duration duration;
@@ -57,24 +72,38 @@ class MafiaGameScreen extends StatefulWidget {
 
 class _MafiaGameScreenState extends State<MafiaGameScreen> {
   _Phase _phase = _Phase.reveal;
-  late MafiaRound _round = _deal();
+  late MafiaGame _game = _newGame();
   int _turn = 0; // whose role is being shown
   bool _revealed = false;
   bool _hostSees = false;
   bool _adRequested = false;
 
+  // The current night.
+  int _night = 1;
+  int? _selected; // the pick on the current screen
+  int? _victim;
+  int? _saved;
+  int? _checked;
+  bool _checkShown = false;
+  int? _lastOut; // eliminated at night, or voted out
+  int _speaker = 0;
+
   Timer? _ticker;
   int _remaining = 0;
   bool _paused = false;
 
+  MafiaRound get _round => _game.round;
   int get _players => widget.playerNames.length;
+  String _name(int i) => widget.playerNames[i];
 
-  MafiaRound _deal() => MafiaRound.start(
-    players: widget.playerNames.length,
-    mafia: widget.mafia,
-    doctor: widget.doctor,
-    detective: widget.detective,
-    random: widget.random,
+  MafiaGame _newGame() => MafiaGame(
+    MafiaRound.start(
+      players: widget.playerNames.length,
+      mafia: widget.mafia,
+      doctor: widget.doctor,
+      detective: widget.detective,
+      random: widget.random,
+    ),
   );
 
   @override
@@ -92,10 +121,13 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
   void _newRound() {
     _ticker?.cancel();
     setState(() {
-      _round = _deal();
+      _game = _newGame();
       _turn = 0;
       _revealed = false;
       _hostSees = false;
+      _night = 1;
+      _selected = _victim = _saved = _checked = _lastOut = null;
+      _checkShown = false;
       _phase = _Phase.reveal;
     });
   }
@@ -115,13 +147,67 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
       _revealed = false;
       _turn++;
     });
-    if (_turn >= _players) {
-      widget.withHost ? setState(() => _phase = _Phase.host) : _startDay();
+    if (_turn < _players) return;
+    if (widget.appRunsNights) {
+      setState(() => _phase = _Phase.nightIntro);
+    } else {
+      setState(() => _phase = _Phase.host);
     }
   }
 
+  // ---------------------------------------------------------------- nights
+
+  void _goTo(_Phase phase) => setState(() {
+    _selected = null;
+    _phase = phase;
+  });
+
+  void _afterMafia() {
+    _victim = _selected;
+    if (_round.count(MafiaRole.doctor) > 0) return _goTo(_Phase.nightDoctor);
+    _afterDoctor();
+  }
+
+  void _afterDoctor() {
+    _saved = _phase == _Phase.nightDoctor ? _selected : null;
+    if (_round.count(MafiaRole.detective) > 0) {
+      _checkShown = false;
+      return _goTo(_Phase.nightDetective);
+    }
+    _morning();
+  }
+
+  void _morning() {
+    _lastOut = _game.resolveNight(victim: _victim!, saved: _saved);
+    _victim = _saved = _checked = null;
+    _goTo(_Phase.morning);
+  }
+
+  void _afterMorning() {
+    _game.winner != null ? _goTo(_Phase.result) : _startDay();
+  }
+
+  void _afterVote() {
+    _lastOut = _selected;
+    if (_selected != null) _game.voteOut(_selected!);
+    _goTo(_Phase.voted);
+  }
+
+  void _afterVoted() {
+    if (_game.winner != null) return _goTo(_Phase.result);
+    _night++;
+    _goTo(_Phase.nightIntro);
+  }
+
+  // ------------------------------------------------------------------- day
+
   void _startDay() {
+    final rng = widget.random ?? Random();
+    final alive = _game.alive;
     setState(() {
+      _speaker = widget.appRunsNights
+          ? alive[rng.nextInt(alive.length)]
+          : _round.firstSpeaker;
       _phase = _Phase.day;
       _remaining = widget.duration.inSeconds;
       _paused = false;
@@ -139,9 +225,10 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
     });
   }
 
-  void _showResult() {
+  /// End of the day discussion: to the vote, or (with a host) the result.
+  void _endDay() {
     _ticker?.cancel();
-    setState(() => _phase = _Phase.result);
+    _goTo(widget.appRunsNights ? _Phase.vote : _Phase.result);
   }
 
   @override
@@ -175,7 +262,64 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
             child: switch (_phase) {
               _Phase.reveal => _buildReveal(s),
               _Phase.host => _buildHost(s),
+              _Phase.nightIntro => _narration(
+                s,
+                icon: Icons.nightlight_round,
+                title: s.format('mafia_night', {'n': _night}),
+                body: s['mafia_close_eyes'],
+                onNext: () => _goTo(_Phase.nightMafia),
+              ),
+              _Phase.nightMafia => _pick(
+                s,
+                icon: Icons.nightlight_round,
+                title: s['mafia_wake_mafia'],
+                body: s['mafia_pick_victim'],
+                choices: _game.aliveNonMafia,
+                onConfirm: _afterMafia,
+              ),
+              _Phase.nightDoctor => _pick(
+                s,
+                icon: Icons.medical_services_rounded,
+                title: s['mafia_wake_doctor'],
+                body: s['mafia_pick_save'],
+                choices: _game.alive,
+                onConfirm: _afterDoctor,
+              ),
+              _Phase.nightDetective => _buildDetective(s),
+              _Phase.morning => _narration(
+                s,
+                icon: Icons.wb_sunny_rounded,
+                title: s['mafia_morning'],
+                body: _lastOut == null
+                    ? s['mafia_nobody_killed']
+                    : s.format('mafia_killed', {'name': _name(_lastOut!)}),
+                hint: s['mafia_morning_hint'],
+                onNext: _afterMorning,
+                bodyKey: const Key('mafiaMorning'),
+              ),
               _Phase.day => _buildDay(s),
+              _Phase.vote => _pick(
+                s,
+                icon: Icons.how_to_vote_rounded,
+                title: s['mafia_vote_title'],
+                choices: _game.alive,
+                confirmLabel: s['mafia_vote_out'],
+                onConfirm: _afterVote,
+                skipLabel: s['mafia_vote_nobody'],
+                onSkip: () {
+                  _selected = null;
+                  _afterVote();
+                },
+              ),
+              _Phase.voted => _narration(
+                s,
+                icon: Icons.how_to_vote_rounded,
+                title: _lastOut == null
+                    ? s['mafia_nobody_voted']
+                    : s.format('mafia_voted_out', {'name': _name(_lastOut!)}),
+                onNext: _afterVoted,
+                bodyKey: const Key('mafiaVoted'),
+              ),
               _Phase.result => _buildResult(s),
             },
           ),
@@ -209,14 +353,14 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
                     teammates: role.isMafia
                         ? [
                             for (final i in _round.mafiaIndexes)
-                              if (i != _turn) widget.playerNames[i],
+                              if (i != _turn) _name(i),
                           ]
                         : const [],
                     strings: s,
                   )
                 : PassCard(
                     key: ValueKey('pass$_turn'),
-                    name: widget.playerNames[_turn],
+                    name: _name(_turn),
                     label: s['spy_pass_to'],
                     nameKey: const Key('mafiaPassName'),
                   ),
@@ -243,7 +387,7 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
               ? _RoleList(
                   title: s['mafia_host_title'],
                   names: widget.playerNames,
-                  round: _round,
+                  game: _game,
                   strings: s,
                   hint: s['mafia_host_hint'],
                 )
@@ -272,6 +416,185 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
     );
   }
 
+  // ------------------------------------------------------------- narration
+
+  /// A full-screen message with a continue button.
+  Widget _narration(
+    Strings s, {
+    required IconData icon,
+    required String title,
+    String? body,
+    String? hint,
+    required VoidCallback onNext,
+    Key? bodyKey,
+  }) {
+    return Column(
+      children: [
+        Expanded(
+          child: Center(
+            child: GlassCard(
+              radius: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 60, color: const Color(0xFFC9A8FF)),
+                    const SizedBox(height: 16),
+                    Text(
+                      title,
+                      key: body == null && bodyKey != null
+                          ? bodyKey
+                          : const Key('mafiaTitle'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (body != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        body,
+                        key: bodyKey,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                    if (hint != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        hint,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.65),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        GradientButton(
+          label: s['mafia_continue'],
+          height: 60,
+          onPressed: onNext,
+        ),
+      ],
+    );
+  }
+
+  /// A list of players to choose one from, with a confirm button.
+  Widget _pick(
+    Strings s, {
+    required IconData icon,
+    required String title,
+    String? body,
+    required List<int> choices,
+    required VoidCallback onConfirm,
+    String? confirmLabel,
+    String? skipLabel,
+    VoidCallback? onSkip,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, size: 40, color: const Color(0xFFC9A8FF)),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          key: const Key('mafiaTitle'),
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+        ),
+        if (body != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
+          ),
+        ],
+        const SizedBox(height: 14),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                for (final i in choices)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _PickTile(
+                      key: Key('pick$i'),
+                      name: _name(i),
+                      selected: _selected == i,
+                      onTap: () {
+                        _haptic();
+                        setState(() => _selected = i);
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        if (skipLabel != null) ...[
+          GlassButton(
+            label: skipLabel,
+            icon: Icons.block_rounded,
+            onPressed: onSkip!,
+          ),
+          const SizedBox(height: 12),
+        ],
+        // Nothing to confirm until someone is picked.
+        IgnorePointer(
+          ignoring: _selected == null,
+          child: Opacity(
+            opacity: _selected == null ? 0.4 : 1,
+            child: GradientButton(
+              key: const Key('mafiaConfirm'),
+              label: confirmLabel ?? s['mafia_confirm'],
+              height: 60,
+              onPressed: onConfirm,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The detective picks someone, then learns whether they are mafia.
+  Widget _buildDetective(Strings s) {
+    if (!_checkShown) {
+      return _pick(
+        s,
+        icon: Icons.search_rounded,
+        title: s['mafia_wake_detective'],
+        body: s['mafia_pick_check'],
+        choices: _game.alive,
+        onConfirm: () => setState(() {
+          _checked = _selected;
+          _checkShown = true;
+        }),
+      );
+    }
+    final mafia = _game.isMafia(_checked!);
+    return _narration(
+      s,
+      icon: Icons.search_rounded,
+      title: s.format(mafia ? 'mafia_check_mafia' : 'mafia_check_clean', {
+        'name': _name(_checked!),
+      }),
+      onNext: _morning,
+      bodyKey: const Key('mafiaCheck'),
+    );
+  }
+
   // ------------------------------------------------------------------- day
 
   Widget _buildDay(Strings s) {
@@ -282,9 +605,7 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
           radius: 28,
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
           child: Text(
-            s.format('mafia_speaks_first', {
-              'name': widget.playerNames[_round.firstSpeaker],
-            }),
+            s.format('mafia_speaks_first', {'name': _name(_speaker)}),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 15),
           ),
@@ -303,7 +624,7 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
                     timerKey: const Key('mafiaTimer'),
                   ),
                   const SizedBox(height: 20),
-                  _RolesInPlay(round: _round, strings: s),
+                  _RolesInPlay(game: _game, strings: s),
                 ],
               ),
             ),
@@ -318,9 +639,9 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
           const SizedBox(height: 12),
         ],
         GradientButton(
-          label: s['mafia_reveal'],
+          label: widget.appRunsNights ? s['mafia_to_vote'] : s['mafia_reveal'],
           height: 60,
-          onPressed: _showResult,
+          onPressed: _endDay,
         ),
       ],
     );
@@ -329,13 +650,19 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
   // ---------------------------------------------------------------- result
 
   Widget _buildResult(Strings s) {
+    final winner = _game.winner;
     return Column(
       children: [
         Expanded(
           child: _RoleList(
-            title: s['mafia_roles_were'],
+            title: winner == null
+                ? s['mafia_roles_were']
+                : winner == MafiaSide.citizens
+                ? s['mafia_citizens_win']
+                : s['mafia_mafia_wins'],
+            titleKey: const Key('mafiaWinner'),
             names: widget.playerNames,
-            round: _round,
+            game: _game,
             strings: s,
           ),
         ),
@@ -354,6 +681,56 @@ class _MafiaGameScreenState extends State<MafiaGameScreen> {
               Navigator.of(context).popUntil((route) => route.isFirst),
         ),
       ],
+    );
+  }
+}
+
+/// One choosable player in a list.
+class _PickTile extends StatelessWidget {
+  const _PickTile({
+    super.key,
+    required this.name,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String name;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: GlassCard(
+        radius: 20,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        gradient: selected
+            ? LinearGradient(
+                colors: [
+                  const Color(0xFFB45CF5).withValues(alpha: 0.55),
+                  const Color(0xFF2A1750).withValues(alpha: 0.95),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (selected) const Icon(Icons.check_circle_rounded),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -460,13 +837,14 @@ class _RoleCard extends StatelessWidget {
 /// Which roles are in the game and how many of each, shown while the players
 /// talk (not who has them).
 class _RolesInPlay extends StatelessWidget {
-  const _RolesInPlay({required this.round, required this.strings});
+  const _RolesInPlay({required this.game, required this.strings});
 
-  final MafiaRound round;
+  final MafiaGame game;
   final Strings strings;
 
   @override
   Widget build(BuildContext context) {
+    final round = game.round;
     return Wrap(
       key: const Key('mafiaRolesInPlay'),
       alignment: WrapAlignment.center,
@@ -499,24 +877,28 @@ class _RolesInPlay extends StatelessWidget {
   }
 }
 
-/// Every player with their role, mafia first.
+/// Every player with their role, mafia first. Players who are out are dimmed
+/// and marked.
 class _RoleList extends StatelessWidget {
   const _RoleList({
     required this.title,
     required this.names,
-    required this.round,
+    required this.game,
     required this.strings,
     this.hint,
+    this.titleKey,
   });
 
   final String title;
+  final Key? titleKey;
   final List<String> names;
-  final MafiaRound round;
+  final MafiaGame game;
   final Strings strings;
   final String? hint;
 
   @override
   Widget build(BuildContext context) {
+    final round = game.round;
     final order = [for (var i = 0; i < names.length; i++) i]
       ..sort((a, b) {
         final byRole = round.roleOf(a).index.compareTo(round.roleOf(b).index);
@@ -526,8 +908,9 @@ class _RoleList extends StatelessWidget {
       children: [
         Text(
           title,
+          key: titleKey,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
         ),
         if (hint != null) ...[
           const SizedBox(height: 4),
@@ -545,38 +928,43 @@ class _RoleList extends StatelessWidget {
                 for (final i in order)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: GlassCard(
-                      radius: 20,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _roleIcon(round.roleOf(i)),
-                            color: _roleColor(round.roleOf(i)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              names[i],
-                              key: Key('mafiaListName$i'),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            strings[round.roleOf(i).nameKey],
-                            key: Key('mafiaListRole$i'),
-                            style: TextStyle(
-                              fontSize: 16,
+                    child: Opacity(
+                      opacity: game.isAlive(i) ? 1 : 0.5,
+                      child: GlassCard(
+                        radius: 20,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _roleIcon(round.roleOf(i)),
                               color: _roleColor(round.roleOf(i)),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                game.isAlive(i)
+                                    ? names[i]
+                                    : '${names[i]} · ${strings['mafia_out']}',
+                                key: Key('mafiaListName$i'),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              strings[round.roleOf(i).nameKey],
+                              key: Key('mafiaListRole$i'),
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: _roleColor(round.roleOf(i)),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
