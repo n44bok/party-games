@@ -124,12 +124,16 @@ class GradientButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.trailingIcon,
+    this.height = 56,
+    this.gradient = brandGradient,
   });
 
   final String label;
   final VoidCallback onPressed;
   final IconData? icon;
   final IconData? trailingIcon;
+  final double height;
+  final Gradient gradient;
 
   @override
   Widget build(BuildContext context) {
@@ -150,9 +154,9 @@ class GradientButton extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: Ink(
-          height: 56,
+          height: height,
           decoration: BoxDecoration(
-            gradient: brandGradient,
+            gradient: gradient,
             borderRadius: BorderRadius.circular(28),
           ),
           child: InkWell(

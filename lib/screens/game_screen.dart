@@ -88,7 +88,28 @@ class _GameScreenState extends State<GameScreen> {
     final deck = _deck;
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(title: Text(s.modeName(mode))),
+      appBar: AppBar(
+        centerTitle: true,
+        title: Text(
+          s.modeName(mode),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+        leading: IconButton(
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.chevron_left_rounded, size: 36),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Settings',
+            onPressed: () =>
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(s['coming_soon']))),
+            icon: const Icon(Icons.settings_outlined),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: GradientBackground(
         child: SafeArea(
           child: deck == null
@@ -96,37 +117,48 @@ class _GameScreenState extends State<GameScreen> {
               : deck.isEmpty
               ? Center(child: Text(s['empty']))
               : Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                   child: Column(
                     children: [
                       GlassCard(
-                        radius: 24,
+                        radius: 30,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
+                          horizontal: 26,
+                          vertical: 14,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.group_outlined, size: 20),
-                            const SizedBox(width: 8),
+                            const Icon(Icons.group_outlined, size: 22),
+                            const SizedBox(width: 10),
                             Text(
                               s.playerOf(
                                 _turn % widget.players + 1,
                                 widget.players,
                               ),
+                              style: const TextStyle(fontSize: 17),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 18),
                       Expanded(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 250),
-                          child: _PromptCard(
-                            key: ValueKey(_cardKey),
-                            prompt: deck[_index],
-                            strings: s,
+                        // The card takes most of the free space and leaves a
+                        // gap above the buttons, as in the design.
+                        child: LayoutBuilder(
+                          builder: (context, constraints) => Align(
+                            alignment: Alignment.topCenter,
+                            child: SizedBox(
+                              height: constraints.maxHeight * 0.8,
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 250),
+                                child: _PromptCard(
+                                  key: ValueKey(_cardKey),
+                                  prompt: deck[_index],
+                                  strings: s,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -134,10 +166,14 @@ class _GameScreenState extends State<GameScreen> {
                       GradientButton(
                         label: s['next'],
                         trailingIcon: Icons.arrow_forward_rounded,
+                        height: 64,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B6BF5), Color(0xFFF2709C)],
+                        ),
                         onPressed: _next,
                       ),
                       if (mode == GameMode.truthOrDare) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         GlassButton(
                           label: s['change_type'],
                           icon: Icons.shuffle_rounded,
@@ -159,87 +195,153 @@ class _PromptCard extends StatelessWidget {
   final Prompt prompt;
   final Strings strings;
 
+  static const _accent = Color(0xFFD59BFF);
+
   @override
   Widget build(BuildContext context) {
     const style = TextStyle(
-      fontSize: 26,
+      fontSize: 30,
+      height: 1.25,
       fontWeight: FontWeight.w700,
       color: Colors.white,
     );
-    const accent = Color(0xFFF0A6F5);
     final kind = prompt.kind;
     return SizedBox.expand(
       child: GlassCard(
-        radius: 32,
-        padding: const EdgeInsets.all(28),
+        radius: 34,
+        padding: EdgeInsets.zero,
+        // Violet glow top-left, dark middle, pink glow bottom-right.
         gradient: LinearGradient(
           colors: [
-            Colors.white.withValues(alpha: 0.08),
-            const Color(0xFFB45CF5).withValues(alpha: 0.28),
+            const Color(0xFF7A4DD8).withValues(alpha: 0.55),
+            const Color(0xFF1E1236).withValues(alpha: 0.6),
+            const Color(0xFFE0508F).withValues(alpha: 0.6),
           ],
+          stops: const [0.0, 0.5, 1.0],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        child: Center(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (kind != null) ...[
-                  GlassCard(
-                    radius: 22,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 8,
+        // GlassCard doesn't clip its child, so round the wave's corners here.
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(34 - 1.2),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const CustomPaint(painter: _WavePainter()),
+              LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  padding: const EdgeInsets.all(28),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 56,
                     ),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
+                      // Without a Truth/Dare badge the text sits in the middle.
+                      mainAxisAlignment: kind == null
+                          ? MainAxisAlignment.center
+                          : MainAxisAlignment.start,
                       children: [
-                        Icon(
-                          kind == 'truth'
-                              ? Icons.chat_bubble_outline
-                              : Icons.bolt_rounded,
-                          color: accent,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          strings[kind],
-                          style: const TextStyle(
-                            color: accent,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                        if (kind != null) ...[
+                          GlassCard(
+                            radius: 28,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 12,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  kind == 'truth'
+                                      ? Icons.chat_bubble_outline_rounded
+                                      : Icons.bolt_rounded,
+                                  color: _accent,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  strings[kind],
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(height: 32),
+                        ],
+                        Text(
+                          prompt.text,
+                          textAlign: TextAlign.center,
+                          style: style,
                         ),
+                        if (prompt.optionB != null) ...[
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 20),
+                            child: Text(
+                              strings['or'],
+                              style: const TextStyle(
+                                color: _accent,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            prompt.optionB!,
+                            textAlign: TextAlign.center,
+                            style: style,
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                ],
-                Text(prompt.text, textAlign: TextAlign.center, style: style),
-                if (prompt.optionB != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Text(
-                      strings['or'],
-                      style: const TextStyle(
-                        color: accent,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    prompt.optionB!,
-                    textAlign: TextAlign.center,
-                    style: style,
-                  ),
-                ],
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Soft wave along the bottom of the card.
+class _WavePainter extends CustomPainter {
+  const _WavePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, size.height * 0.86)
+      ..cubicTo(
+        size.width * 0.3,
+        size.height * 1.0,
+        size.width * 0.6,
+        size.height * 0.68,
+        size.width,
+        size.height * 0.82,
+      )
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.0),
+            Colors.white.withValues(alpha: 0.10),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(Offset.zero & size),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_WavePainter oldDelegate) => false;
 }
