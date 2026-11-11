@@ -9,21 +9,36 @@ import 'ad_service.dart';
 
 /// Ad unit ids.
 ///
-/// These are Google's official TEST units: they always return a clearly
-/// labelled test ad and are safe to click. Replace them with the real units
-/// from the AdMob console before release (and never click your own live ads).
+/// Release builds (the ones that go to the stores) use our real AdMob units.
+/// Debug and profile builds use Google's official TEST units, which always
+/// return a clearly labelled test ad and are safe to click: never click live
+/// ads on your own phone, AdMob treats that as invalid traffic.
 class AdUnits {
   const AdUnits._();
 
+  static bool get _live => kReleaseMode;
+
   static String get banner => switch (defaultTargetPlatform) {
-    TargetPlatform.android => 'ca-app-pub-3940256099942544/6300978111',
-    TargetPlatform.iOS => 'ca-app-pub-3940256099942544/2934735716',
+    TargetPlatform.android =>
+      _live
+          ? 'ca-app-pub-6734526134116766/2317548202'
+          : 'ca-app-pub-3940256099942544/6300978111',
+    TargetPlatform.iOS =>
+      _live
+          ? 'ca-app-pub-6734526134116766/8292909556'
+          : 'ca-app-pub-3940256099942544/2934735716',
     _ => '',
   };
 
   static String get interstitial => switch (defaultTargetPlatform) {
-    TargetPlatform.android => 'ca-app-pub-3940256099942544/1033173712',
-    TargetPlatform.iOS => 'ca-app-pub-3940256099942544/4411468910',
+    TargetPlatform.android =>
+      _live
+          ? 'ca-app-pub-6734526134116766/5462586297'
+          : 'ca-app-pub-3940256099942544/1033173712',
+    TargetPlatform.iOS =>
+      _live
+          ? 'ca-app-pub-6734526134116766/5666746219'
+          : 'ca-app-pub-3940256099942544/4411468910',
     _ => '',
   };
 }

@@ -2,10 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- AdMob application id. This is Google's official TEST id; replace it
-	     with the real one from the AdMob console before release. -->
+	<!-- AdMob application id (iOS app "Party games IOS"). The ad units are
+	     chosen in code: test units unless it is a release build. -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-6734526134116766~5326854925</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>The microphone is used in the game Song Backwards: you sing a short part of a song and the app plays it backwards. Recordings stay on the phone and are deleted after each round.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
