@@ -73,7 +73,7 @@ enum GameMode {
   int get defaultPlayers => switch (this) {
     spy => 3,
     mafia => 6,
-    charades => 4,
+    charades => 3,
     _ => 2,
   };
 

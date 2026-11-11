@@ -2252,7 +2252,7 @@ void main() {
     String word(WidgetTester tester) =>
         tester.widget<Text>(find.byKey(const Key('charadesWord'))).data!;
 
-    testWidgets('is third and starts with four players', (tester) async {
+    testWidgets('is third and starts with three players', (tester) async {
       expect(GameMode.values[2], GameMode.charades);
       spyPhone(tester);
       await tester.pumpWidget(app());
@@ -2260,7 +2260,7 @@ void main() {
       await settle(tester);
       expect(
         tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
-        '4',
+        '3',
       );
     });
 
@@ -2309,7 +2309,7 @@ void main() {
     testWidgets('after everyone has acted the best score wins', (tester) async {
       await startCharades(tester);
       // Player 1 guesses two words, the others none.
-      for (var turn = 0; turn < 4; turn++) {
+      for (var turn = 0; turn < 3; turn++) {
         await tester.tap(find.text("I'm ready"));
         await settle(tester);
         if (turn == 0) {
@@ -2321,7 +2321,7 @@ void main() {
         await tester.pump(const Duration(seconds: 60));
         await tester.pump();
         await tester.tap(
-          find.text(turn == 3 ? 'See the results' : 'Next player'),
+          find.text(turn == 2 ? 'See the results' : 'Next player'),
         );
         await settle(tester);
       }
