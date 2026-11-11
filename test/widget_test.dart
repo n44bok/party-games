@@ -940,8 +940,7 @@ void main() {
         'Objects',
         'Clothes',
         'Nature',
-        'One word',
-        'My words',
+        'My word',
       ]) {
         expect(pills('spyCategoryPills', label), findsOneWidget);
       }
@@ -950,8 +949,6 @@ void main() {
       await tapPill(tester, pills('spyCategoryPills', 'Food'));
       expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
       expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
-      // The own-words editor is only there for "My words".
-      expect(find.byKey(const Key('customWordField')), findsNothing);
     });
 
     for (final entry in {
@@ -1255,162 +1252,6 @@ void main() {
     });
   });
 
-  group('own spy words', () {
-    test('words are tidied, deduplicated and saved', () async {
-      SharedPreferences.setMockInitialValues({});
-      final settings = await SettingsController.load();
-      expect(settings.spyWords, isEmpty);
-
-      expect(await settings.addSpyWord('  Giant   squid '), isTrue);
-      expect(settings.spyWords, ['Giant squid']);
-
-      // Nothing, only spaces, or the same word in other letters: rejected.
-      expect(await settings.addSpyWord(''), isFalse);
-      expect(await settings.addSpyWord('    '), isFalse);
-      expect(await settings.addSpyWord('GIANT SQUID'), isFalse);
-      expect(settings.spyWords, ['Giant squid']);
-
-      expect(await settings.addSpyWord('Moon'), isTrue);
-
-      // Survives a restart.
-      expect((await SettingsController.load()).spyWords, [
-        'Giant squid',
-        'Moon',
-      ]);
-    });
-
-    test('a word can be removed, and long ones are cut', () async {
-      SharedPreferences.setMockInitialValues({});
-      final settings = await SettingsController.load();
-      await settings.addSpyWord('Moon');
-      await settings.addSpyWord('x' * 80);
-      expect(
-        settings.spyWords.last.length,
-        SettingsController.maxSpyWordLength,
-      );
-
-      await settings.removeSpyWord('Moon');
-      expect(settings.spyWords, isNot(contains('Moon')));
-      expect((await SettingsController.load()).spyWords.length, 1);
-    });
-
-    test('there is a limit on how many words are kept', () async {
-      SharedPreferences.setMockInitialValues({});
-      final settings = await SettingsController.load();
-      for (var i = 0; i < SettingsController.maxSpyWords; i++) {
-        expect(await settings.addSpyWord('word $i'), isTrue);
-      }
-      expect(await settings.addSpyWord('one too many'), isFalse);
-      expect(settings.spyWords.length, SettingsController.maxSpyWords);
-    });
-
-    testWidgets('add words in the setup, then play with them', (tester) async {
-      spyPhone(tester);
-      final settings = SettingsController();
-      await tester.pumpWidget(
-        PartyGamesApp(repository: FakeRepository(), settings: settings),
-      );
-      await openGame(tester, 'Spy');
-      await settle(tester);
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(const Key('spyCategoryPills')),
-          matching: find.text('My words'),
-        ),
-      );
-      await tester.pump();
-      expect(find.byKey(const Key('customWordField')), findsOneWidget);
-
-      // Nothing to play with yet: starting is refused with an explanation.
-      await startGame(tester);
-      await tester.pump();
-      expect(
-        find.text('Add at least one word to play with your own words'),
-        findsWidgets,
-      );
-      expect(find.byType(SpyGameScreen), findsNothing);
-
-      // Add a word (spaces tidied); it appears as a chip and is saved.
-      await tester.enterText(
-        find.byKey(const Key('customWordField')),
-        '  Giant   squid ',
-      );
-      await tester.tap(find.byTooltip('Add word'));
-      await tester.pump();
-      expect(find.text('Giant squid'), findsOneWidget);
-      expect(settings.spyWords, ['Giant squid']);
-      // The field is emptied for the next word.
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('customWordField')))
-            .controller!
-            .text,
-        isEmpty,
-      );
-
-      // The same word again is not added twice, and stays in the field.
-      await tester.enterText(
-        find.byKey(const Key('customWordField')),
-        'giant squid',
-      );
-      await tester.tap(find.byTooltip('Add word'));
-      await tester.pump();
-      expect(settings.spyWords.length, 1);
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('customWordField')))
-            .controller!
-            .text,
-        'giant squid',
-      );
-
-      // Play: everyone but the spy sees exactly that word.
-      await startGame(tester);
-      await settle(tester);
-      await settle(tester);
-      final seen = <String>{};
-      for (var i = 0; i < 3; i++) {
-        await tester.tap(find.text('Show my role'));
-        await settle(tester);
-        if (find.byKey(const Key('spyWord')).evaluate().isNotEmpty) {
-          seen.add(
-            (tester.widget<Text>(find.byKey(const Key('spyWord')))).data!,
-          );
-        }
-        await tester.tap(
-          find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
-        );
-        await settle(tester);
-      }
-      expect(seen, {'Giant squid'});
-    });
-
-    testWidgets('a saved word can be removed from the chip', (tester) async {
-      spyPhone(tester);
-      final settings = SettingsController(spyWords: ['Moon', 'Sun']);
-      await tester.pumpWidget(
-        PartyGamesApp(repository: FakeRepository(), settings: settings),
-      );
-      await openGame(tester, 'Spy');
-      await settle(tester);
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(const Key('spyCategoryPills')),
-          matching: find.text('My words'),
-        ),
-      );
-      await tester.pump();
-      expect(find.text('Moon'), findsOneWidget);
-      expect(find.text('Sun'), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Remove').first); // the "x" of Moon
-      await tester.pump();
-      expect(find.text('Moon'), findsNothing);
-      expect(find.text('Sun'), findsOneWidget);
-      expect(settings.spyWords, ['Sun']);
-    });
-  });
-
   group('time warning', () {
     test('is on by default and is remembered', () async {
       SharedPreferences.setMockInitialValues({});
@@ -1487,7 +1328,7 @@ void main() {
     });
   });
 
-  group('one word for this game', () {
+  group('my word (one word for this game)', () {
     Finder categoryPill(String label) => find.descendant(
       of: find.byKey(const Key('spyCategoryPills')),
       matching: find.text(label),
@@ -1508,12 +1349,11 @@ void main() {
       await openSetup(tester);
       expect(find.byKey(const Key('singleWordField')), findsNothing);
 
-      await tester.tap(categoryPill('One word'));
+      await tester.tap(categoryPill('My word'));
       await tester.pump();
       expect(find.byKey(const Key('singleWordField')), findsOneWidget);
-      expect(find.text('Used only for this game, not saved'), findsOneWidget);
-      // The saved-words editor is a different category.
-      expect(find.byKey(const Key('customWordField')), findsNothing);
+      // No explanatory note under the field.
+      expect(find.text('Used only for this game, not saved'), findsNothing);
 
       await tester.tap(categoryPill('Food'));
       await tester.pump();
@@ -1522,7 +1362,7 @@ void main() {
 
     testWidgets('the game needs the word first', (tester) async {
       await openSetup(tester);
-      await tester.tap(categoryPill('One word'));
+      await tester.tap(categoryPill('My word'));
       await tester.pump();
 
       await startGame(tester);
@@ -1537,11 +1377,9 @@ void main() {
       expect(find.byType(SpyGameScreen), findsNothing);
     });
 
-    testWidgets('everyone but the spy sees exactly that word, unsaved', (
-      tester,
-    ) async {
-      final settings = await openSetup(tester);
-      await tester.tap(categoryPill('One word'));
+    testWidgets('everyone but the spy sees exactly that word', (tester) async {
+      await openSetup(tester);
+      await tester.tap(categoryPill('My word'));
       await tester.pump();
       await tester.enterText(
         find.byKey(const Key('singleWordField')),
@@ -1571,15 +1409,13 @@ void main() {
       expect(spies, 1);
       expect(seen, {'Mars rover'}); // spaces tidied
 
-      // Not saved: it is not among "My words", and a fresh setup starts
-      // with an empty field.
-      expect(settings.spyWords, isEmpty);
+      // Not saved: a fresh setup starts with an empty field.
       Navigator.of(tester.element(find.byType(SpyGameScreen)))
           .popUntil((route) => route.isFirst);
       await tester.pumpAndSettle();
       await openGame(tester, 'Spy');
       await settle(tester);
-      await tester.tap(categoryPill('One word'));
+      await tester.tap(categoryPill('My word'));
       await tester.pump();
       final field = tester.widget<TextField>(
         find.byKey(const Key('singleWordField')),

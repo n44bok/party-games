@@ -50,8 +50,8 @@ class SpyRound {
 /// The theme of the secret words.
 ///
 /// Most categories ship with the app: their [id] is the key in
-/// `spy_words.json`. Two are the players' own: [single], one word typed for
-/// this game only, and [custom], a list of words kept in the settings.
+/// `spy_words.json`. [single] is the players' own: one word typed for this
+/// game only, never saved.
 enum SpyCategory {
   places('places'),
   food('food'),
@@ -63,21 +63,14 @@ enum SpyCategory {
   objects('objects'),
   clothes('clothes'),
   nature('nature'),
-  single('single'),
-  custom('custom');
+  single('single');
 
   const SpyCategory(this.id);
 
   final String id;
 
-  /// The player's own words, kept in the settings.
-  bool get isCustom => this == custom;
-
-  /// One word typed for a single game, never saved.
+  /// One word typed by the players for this game.
   bool get isSingle => this == single;
-
-  /// The words come from the players, not from the app's files.
-  bool get isOwn => isCustom || isSingle;
 
   /// Strings key of the category's name.
   String get labelKey => 'spy_cat_$id';
@@ -85,6 +78,6 @@ enum SpyCategory {
   /// The categories whose words come with the app.
   static List<SpyCategory> get builtIn => [
     for (final c in values)
-      if (!c.isOwn) c,
+      if (!c.isSingle) c,
   ];
 }

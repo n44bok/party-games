@@ -17,25 +17,21 @@ class SettingsController extends ChangeNotifier {
     bool adsRemoved = false,
     bool timeWarning = true,
     bool sound = true,
-    List<String> spyWords = const [],
   }) : _prefs = prefs,
        _locale = locale,
        _haptics = haptics,
        _adsRemoved = adsRemoved,
        _timeWarning = timeWarning,
-       _sound = sound,
-       _spyWords = List.of(spyWords);
+       _sound = sound;
 
   static const _localeKey = 'locale';
   static const _hapticsKey = 'haptics';
   static const _adsRemovedKey = 'adsRemoved';
-  static const _spyWordsKey = 'spyWords';
   static const _timeWarningKey = 'timeWarning';
   static const _soundKey = 'sound';
 
-  /// Longest custom word kept, and how many may be saved.
+  /// Longest own Spy word.
   static const maxSpyWordLength = 30;
-  static const maxSpyWords = 100;
 
   /// Reads the saved preferences. Falls back to defaults if storage fails, so
   /// a broken preferences file never prevents the app from starting.
@@ -50,7 +46,6 @@ class SettingsController extends ChangeNotifier {
         adsRemoved: prefs.getBool(_adsRemovedKey) ?? false,
         timeWarning: prefs.getBool(_timeWarningKey) ?? true,
         sound: prefs.getBool(_soundKey) ?? true,
-        spyWords: prefs.getStringList(_spyWordsKey) ?? const [],
       );
     } catch (e) {
       debugPrint('Could not load settings, using defaults: $e');
@@ -65,7 +60,6 @@ class SettingsController extends ChangeNotifier {
   bool _adsRemoved;
   bool _timeWarning;
   bool _sound;
-  final List<String> _spyWords;
 
   /// `null` means "follow the system language".
   Locale? get locale => _locale;
@@ -103,9 +97,6 @@ class SettingsController extends ChangeNotifier {
     await _prefs?.setBool(_timeWarningKey, value);
   }
 
-  /// The player's own Spy words, in the order they were added.
-  List<String> get spyWords => List.unmodifiable(_spyWords);
-
   /// Tidies a typed word: trims it, collapses inner spaces and caps its length.
   /// Returns null if nothing is left.
   static String? cleanSpyWord(String raw) {
@@ -114,25 +105,6 @@ class SettingsController extends ChangeNotifier {
       word = word.substring(0, maxSpyWordLength).trimRight();
     }
     return word.isEmpty ? null : word;
-  }
-
-  /// Adds [raw] to the player's words. Returns false (and changes nothing) if
-  /// it is empty, already there (ignoring case) or the list is full.
-  Future<bool> addSpyWord(String raw) async {
-    final word = cleanSpyWord(raw);
-    if (word == null || _spyWords.length >= maxSpyWords) return false;
-    final lower = word.toLowerCase();
-    if (_spyWords.any((w) => w.toLowerCase() == lower)) return false;
-    _spyWords.add(word);
-    notifyListeners();
-    await _prefs?.setStringList(_spyWordsKey, _spyWords);
-    return true;
-  }
-
-  Future<void> removeSpyWord(String word) async {
-    if (!_spyWords.remove(word)) return;
-    notifyListeners();
-    await _prefs?.setStringList(_spyWordsKey, _spyWords);
   }
 
   Future<void> setLocale(Locale? value) async {
