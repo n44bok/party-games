@@ -1261,22 +1261,56 @@ void main() {
       expect((await SettingsController.load()).timeWarning, isFalse);
     });
 
-    testWidgets('can be switched in the settings screen', (tester) async {
+    testWidgets('is a Spy option, not a general setting', (tester) async {
+      // Not among the general settings...
       phone(tester);
+      await tester.pumpWidget(app());
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+      expect(find.text('Time warning'), findsNothing);
+      expect(find.byKey(const Key('timeWarningSwitch')), findsNothing);
+    });
+
+    testWidgets('it is switched in the Spy setup and remembered', (
+      tester,
+    ) async {
+      spyPhone(tester);
       final settings = SettingsController();
       await tester.pumpWidget(
         PartyGamesApp(repository: FakeRepository(), settings: settings),
       );
-      await tester.tap(find.byTooltip('Settings'));
+      await openGame(tester, 'Spy');
       await settle(tester);
-      expect(find.text('Time warning'), findsOneWidget);
 
-      expect(settings.timeWarning, isTrue);
-      await tester.tap(find.byKey(const Key('timeWarningSwitch')));
+      expect(find.text('Time warning'), findsOneWidget);
+      expect(find.text('A signal 20 seconds before the end'), findsOneWidget);
+      final warningSwitch = find.byKey(const Key('timeWarningSwitch'));
+      expect(tester.widget<Switch>(warningSwitch).value, isTrue);
+
+      await tester.ensureVisible(warningSwitch);
+      await tester.pump();
+      await tester.tap(warningSwitch);
+      await tester.pump();
+      expect(tester.widget<Switch>(warningSwitch).value, isFalse);
+      expect(settings.timeWarning, isFalse); // remembered for next time
+      // Independent of the sound switch.
+      expect(settings.sound, isTrue);
+    });
+
+    testWidgets('the setup starts from the remembered choice', (tester) async {
+      spyPhone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(
+          repository: FakeRepository(),
+          settings: SettingsController(timeWarning: false),
+        ),
+      );
+      await openGame(tester, 'Spy');
       await settle(tester);
-      expect(settings.timeWarning, isFalse);
-      // The vibration switch is independent.
-      expect(settings.haptics, isTrue);
+      expect(
+        tester.widget<Switch>(find.byKey(const Key('timeWarningSwitch'))).value,
+        isFalse,
+      );
     });
 
     testWidgets('the players are told to hurry with 20 seconds to go', (
@@ -1444,7 +1478,7 @@ void main() {
       await tester.tap(find.byKey(const Key('soundSwitch')));
       await settle(tester);
       expect(settings.sound, isFalse);
-      // Independent of vibration and of the visual warning.
+      // Independent of vibration and of the time warning.
       expect(settings.haptics, isTrue);
       expect(settings.timeWarning, isTrue);
     });
@@ -1512,6 +1546,52 @@ void main() {
       await tester.pump(const Duration(seconds: 120));
       expect(sounds.warnings, 0);
       expect(sounds.timeUps, 0);
+    });
+
+    testWidgets('switched off in the setup, the game does not warn', (
+      tester,
+    ) async {
+      final sounds = FakeSoundService();
+      spyPhone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(
+          repository: FakeRepository(),
+          settings: SettingsController(),
+          sounds: sounds,
+        ),
+      );
+      await openGame(tester, 'Spy');
+      await settle(tester);
+      final warningSwitch = find.byKey(const Key('timeWarningSwitch'));
+      await tester.ensureVisible(warningSwitch);
+      await tester.pump();
+      await tester.tap(warningSwitch);
+      await tester.pump();
+      final fiveMinutes = find.descendant(
+        of: find.byKey(const Key('timerPills')),
+        matching: find.text('5 min'),
+      );
+      await tester.ensureVisible(fiveMinutes);
+      await tester.pump();
+      await tester.tap(fiveMinutes);
+      await tester.pump();
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        await tester.tap(
+          find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+
+      await tester.pump(const Duration(seconds: 285)); // 0:15 left
+      expect(find.text('Hurry up!'), findsNothing);
+      expect(sounds.warnings, 0);
+      await tester.pump(const Duration(seconds: 15));
+      expect(sounds.timeUps, 1); // the end still sounds
     });
   });
 }

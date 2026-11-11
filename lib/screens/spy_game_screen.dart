@@ -33,6 +33,7 @@ class SpyGameScreen extends StatefulWidget {
     required this.duration,
     this.category = SpyCategory.places,
     this.ownWord,
+    this.timeWarning = true,
     this.repository,
     this.random,
   });
@@ -46,6 +47,10 @@ class SpyGameScreen extends StatefulWidget {
 
   /// The theme of the secret words.
   final SpyCategory category;
+
+  /// Warn the players 20 seconds before the time runs out (a signal, an amber
+  /// dial and, if they are switched on, vibration and sound).
+  final bool timeWarning;
 
   /// The players' own word; the one used when [category] is
   /// [SpyCategory.single].
@@ -146,11 +151,10 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
     strong ? HapticFeedback.heavyImpact() : HapticFeedback.selectionClick();
   }
 
-  /// The "time warning" setting is on and the round is long enough for it to
-  /// make sense.
+  /// The warning was chosen for this game and the round is long enough for it
+  /// to make sense.
   bool get _warningEnabled =>
-      SettingsScope.read(context).timeWarning &&
-      widget.duration.inSeconds > _warnAtSeconds;
+      widget.timeWarning && widget.duration.inSeconds > _warnAtSeconds;
 
   /// Less than [_warnAtSeconds] seconds left (but not yet out of time).
   bool get _inWarning =>

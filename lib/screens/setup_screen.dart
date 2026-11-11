@@ -43,6 +43,10 @@ class _SetupScreenState extends State<SetupScreen> {
   int _spies = 1;
   int _minutes = 8;
 
+  /// The time warning is part of this game's options; the choice is
+  /// remembered between games.
+  late bool _timeWarning = SettingsScope.read(context).timeWarning;
+
   @override
   void initState() {
     super.initState();
@@ -114,6 +118,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 duration: Duration(minutes: _minutes),
                 category: _spyCategory,
                 ownWord: _spyCategory.isSingle ? ownWord : null,
+                timeWarning: _timeWarning,
               )
             : GameScreen(
                 mode: widget.mode,
@@ -186,6 +191,14 @@ class _SetupScreenState extends State<SetupScreen> {
         ],
         selected: _minutes,
         onSelected: (m) => setState(() => _minutes = m),
+      ),
+      const SizedBox(height: 18),
+      _TimeWarningRow(
+        value: _timeWarning,
+        onChanged: (value) {
+          setState(() => _timeWarning = value);
+          SettingsScope.read(context).setTimeWarning(value); // remember it
+        },
       ),
     ];
   }
@@ -371,6 +384,49 @@ class _NameField extends StatelessWidget {
         focusedBorder: border(0.6),
         border: border(0.16),
       ),
+    );
+  }
+}
+
+/// "Time warning": a switch with a one-line explanation, inside the Spy
+/// options.
+class _TimeWarningRow extends StatelessWidget {
+  const _TimeWarningRow({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        const Icon(Icons.hourglass_bottom_rounded),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(s['time_warning'], style: theme.textTheme.titleMedium),
+              const SizedBox(height: 2),
+              Text(
+                s['time_warning_desc'],
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          key: const Key('timeWarningSwitch'),
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: const Color(0xFFB45CF5),
+          activeThumbColor: Colors.white,
+        ),
+      ],
     );
   }
 }
