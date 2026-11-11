@@ -1,22 +1,47 @@
 import 'package:flutter/material.dart';
 
 /// Deep purple backdrop shared by all screens.
+///
+/// With [dark] it is nearly black with a pink haze in the bottom-right corner,
+/// used by the game screen.
 class GradientBackground extends StatelessWidget {
-  const GradientBackground({super.key, required this.child});
+  const GradientBackground({super.key, required this.child, this.dark = false});
 
   final Widget child;
+  final bool dark;
 
   @override
   Widget build(BuildContext context) {
+    final colors = dark
+        ? const [Color(0xFF110C1E), Color(0xFF191030), Color(0xFF241437)]
+        : const [Color(0xFF140B2B), Color(0xFF26144A), Color(0xFF5A3A98)];
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF140B2B), Color(0xFF26144A), Color(0xFF5A3A98)],
+          colors: colors,
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
       ),
-      child: SizedBox.expand(child: child),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (dark)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(1.0, 1.0),
+                  radius: 1.1,
+                  colors: [
+                    const Color(0xFFF06FB5).withValues(alpha: 0.20),
+                    const Color(0xFFF06FB5).withValues(alpha: 0),
+                  ],
+                ),
+              ),
+            ),
+          child,
+        ],
+      ),
     );
   }
 }

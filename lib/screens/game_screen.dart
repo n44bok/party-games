@@ -125,6 +125,7 @@ class _GameScreenState extends State<GameScreen> {
         ],
       ),
       body: GradientBackground(
+        dark: true,
         child: SafeArea(
           child: _error != null
               ? _LoadError(
@@ -139,38 +140,51 @@ class _GameScreenState extends State<GameScreen> {
               ? Center(child: Text(s['empty']))
               : Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Column(
-                    children: [
-                      GlassCard(
-                        radius: 30,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 26,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final hasChangeType = mode == GameMode.truthOrDare;
+                      // Everything except the card: pill, gaps, buttons.
+                      final fixed =
+                          46 +
+                          18 +
+                          _waveGap +
+                          64 +
+                          (hasChangeType ? 14 + 56 : 0);
+                      // Like the design, the card takes about 46% of the
+                      // screen and the buttons follow it, leaving some free
+                      // space at the bottom. Shrinks on small screens.
+                      final cardHeight =
+                          (MediaQuery.sizeOf(context).height * 0.46).clamp(
+                            240.0,
+                            (constraints.maxHeight - fixed).clamp(240.0, 900.0),
+                          );
+                      return SingleChildScrollView(
+                        child: Column(
                           children: [
-                            const Icon(Icons.group_outlined, size: 22),
-                            const SizedBox(width: 10),
-                            Text(
-                              s.playerOf(
-                                _turn % widget.players + 1,
-                                widget.players,
+                            GlassCard(
+                              radius: 30,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                                vertical: 11,
                               ),
-                              style: const TextStyle(fontSize: 17),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.group_outlined, size: 20),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    s.playerOf(
+                                      _turn % widget.players + 1,
+                                      widget.players,
+                                    ),
+                                    style: const TextStyle(fontSize: 15),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Expanded(
-                        // The card takes most of the free space and leaves a
-                        // gap above the buttons, as in the design.
-                        child: LayoutBuilder(
-                          builder: (context, constraints) => Align(
-                            alignment: Alignment.topCenter,
-                            child: SizedBox(
-                              height: constraints.maxHeight * 0.8,
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              height: cardHeight,
                               child: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 250),
                                 child: _PromptCard(
@@ -180,31 +194,34 @@ class _GameScreenState extends State<GameScreen> {
                                 ),
                               ),
                             ),
-                          ),
+                            // Room for the wave hanging below the card.
+                            const SizedBox(height: _waveGap),
+                            GradientButton(
+                              label: s['next'],
+                              trailingIcon: Icons.arrow_forward_rounded,
+                              height: 64,
+                              onPressed: _next,
+                            ),
+                            if (hasChangeType) ...[
+                              const SizedBox(height: 14),
+                              GlassButton(
+                                label: s['change_type'],
+                                icon: Icons.shuffle_rounded,
+                                onPressed: _changeType,
+                              ),
+                            ],
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      GradientButton(
-                        label: s['next'],
-                        trailingIcon: Icons.arrow_forward_rounded,
-                        height: 64,
-                        onPressed: _next,
-                      ),
-                      if (mode == GameMode.truthOrDare) ...[
-                        const SizedBox(height: 14),
-                        GlassButton(
-                          label: s['change_type'],
-                          icon: Icons.shuffle_rounded,
-                          onPressed: _changeType,
-                        ),
-                      ],
-                    ],
+                      );
+                    },
                   ),
                 ),
         ),
       ),
     );
   }
+
+  static const _waveGap = 58.0;
 }
 
 class _PromptCard extends StatelessWidget {
@@ -223,9 +240,9 @@ class _PromptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const style = TextStyle(
-      fontSize: 30,
-      height: 1.25,
-      fontWeight: FontWeight.w700,
+      fontSize: 27,
+      height: 1.28,
+      fontWeight: FontWeight.w600,
       color: Colors.white,
     );
     final kind = prompt.kind;
@@ -269,7 +286,7 @@ class _PromptCard extends StatelessWidget {
                         center: const Alignment(-0.9, -1.0),
                         radius: 1.0,
                         colors: [
-                          const Color(0xFF8B5CF6).withValues(alpha: 0.38),
+                          const Color(0xFF8B5CF6).withValues(alpha: 0.30),
                           const Color(0xFF8B5CF6).withValues(alpha: 0),
                         ],
                       ),
@@ -370,11 +387,11 @@ class _KindBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       radius: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
       gradient: LinearGradient(
         colors: [
-          const Color(0xFF8B5CF6).withValues(alpha: 0.5),
-          const Color(0xFF3A2470).withValues(alpha: 0.55),
+          const Color(0xFF8B5CF6).withValues(alpha: 0.38),
+          const Color(0xFF3A2470).withValues(alpha: 0.5),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
@@ -396,14 +413,14 @@ class _KindBadge extends StatelessWidget {
                 ? Icons.chat_bubble_outline_rounded
                 : Icons.bolt_rounded,
             color: _PromptCard._pink,
-            size: 26,
+            size: 22,
           ),
           const SizedBox(width: 10),
           Text(
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -485,8 +502,8 @@ class _WavePainter extends CustomPainter {
           colors: [
             Colors.white.withValues(alpha: 0.0),
             Colors.white.withValues(alpha: 0.0),
-            const Color(0xFFD59BFF).withValues(alpha: 0.10),
-            const Color(0xFFF06FB5).withValues(alpha: 0.26),
+            const Color(0xFFD59BFF).withValues(alpha: 0.16),
+            const Color(0xFFF06FB5).withValues(alpha: 0.42),
           ],
           stops: const [0.0, 0.18, 0.55, 1.0],
         ).createShader(Offset.zero & size),
@@ -497,7 +514,7 @@ class _WavePainter extends CustomPainter {
       ..shader = LinearGradient(
         colors: [
           Colors.white.withValues(alpha: 0.0),
-          Colors.white.withValues(alpha: 0.28),
+          Colors.white.withValues(alpha: 0.5),
         ],
       ).createShader(Offset.zero & size);
     canvas.drawPath(top, line);
