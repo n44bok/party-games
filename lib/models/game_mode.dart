@@ -54,7 +54,7 @@ enum GameMode {
   Color get glow => switch (this) {
     truthOrDare => const Color(0xFFFF4F92),
     mostLikely => const Color(0xFF8A5CFF),
-    neverHaveIEver => const Color(0xFFE0457A),
+    neverHaveIEver => const Color(0xFFFF6A3D),
     thisOrThat => const Color(0xFF3F7BFF),
     wouldYouRather => const Color(0xFF1FB8AE),
     randomChallenge => const Color(0xFFF2A04A),
@@ -63,6 +63,7 @@ enum GameMode {
   /// Where the glow starts inside the card.
   Alignment get glowAlignment => switch (this) {
     mostLikely => const Alignment(0.9, -1.0),
+    neverHaveIEver => const Alignment(-0.9, 1.0),
     randomChallenge => const Alignment(0.9, 1.0),
     _ => const Alignment(-0.9, -1.0),
   };
@@ -71,7 +72,7 @@ enum GameMode {
   Color get tint => switch (this) {
     truthOrDare => const Color(0xFFFF9EC4),
     mostLikely => const Color(0xFFC9A8FF),
-    neverHaveIEver => const Color(0xFFFF9FB5),
+    neverHaveIEver => const Color(0xFFFFB59A),
     thisOrThat => const Color(0xFF9AD4FF),
     wouldYouRather => const Color(0xFFA6EAF2),
     randomChallenge => const Color(0xFFFFE6C8),
