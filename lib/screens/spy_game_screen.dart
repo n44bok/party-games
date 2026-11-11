@@ -31,6 +31,7 @@ class SpyGameScreen extends StatefulWidget {
     required this.spies,
     required this.duration,
     this.category = SpyCategory.places,
+    this.customWords = const [],
     this.repository,
     this.random,
   });
@@ -44,6 +45,9 @@ class SpyGameScreen extends StatefulWidget {
 
   /// The theme of the secret words.
   final SpyCategory category;
+
+  /// The player's own words; used when [category] is [SpyCategory.custom].
+  final List<String> customWords;
   final ContentRepository? repository;
 
   /// Injectable for tests.
@@ -89,6 +93,16 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
 
   Future<void> _load() async {
     final s = Strings.of(context);
+    if (widget.category.isCustom) {
+      // The player's own words: nothing to load. Start in a microtask rather
+      // than from inside didChangeDependencies.
+      Future.microtask(() {
+        if (!mounted) return;
+        _words = widget.customWords;
+        _newRound();
+      });
+      return;
+    }
     final repo = widget.repository ?? ContentScope.of(context);
     try {
       final byCategory = await repo.loadSpyWords(s.code);

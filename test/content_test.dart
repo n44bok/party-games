@@ -66,7 +66,7 @@ void main() {
       ) as Map<String, dynamic>;
       expect(
         byCategory.keys.toSet(),
-        SpyCategory.values.map((c) => c.id).toSet(),
+        SpyCategory.builtIn.map((c) => c.id).toSet(),
         reason: 'categories of $lang',
       );
       for (final entry in byCategory.entries) {

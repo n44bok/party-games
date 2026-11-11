@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../ads/ad_service.dart';
+import '../data/settings.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
 import '../widgets/category_chips.dart';
@@ -78,6 +79,21 @@ class _SetupScreenState extends State<SetupScreen> {
   void _start() {
     final s = Strings.of(context);
     FocusScope.of(context).unfocus();
+    // A message from an earlier refused start must not linger over the game
+    // screen and cover its buttons.
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    // Own words: there must be something to play with.
+    final customWords = SettingsScope.read(context).spyWords;
+    if (widget.mode == GameMode.spy &&
+        _spyCategory.isCustom &&
+        customWords.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(s['spy_custom_empty'])));
+      return;
+    }
+
     // An empty field falls back to "Player N".
     final names = [
       for (var i = 0; i < _players; i++)
@@ -93,6 +109,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 spies: _spies,
                 duration: Duration(minutes: _minutes),
                 category: _spyCategory,
+                customWords: customWords,
               )
             : GameScreen(
                 mode: widget.mode,
@@ -135,12 +152,16 @@ class _SetupScreenState extends State<SetupScreen> {
       divider,
       header(Icons.category_outlined, s['spy_words']),
       const SizedBox(height: 14),
-      OptionPills<SpyCategory>(
+      PillWrap<SpyCategory>(
         key: const Key('spyCategoryPills'),
         options: [for (final c in SpyCategory.values) (c, s[c.labelKey])],
         selected: _spyCategory,
         onSelected: (c) => setState(() => _spyCategory = c),
       ),
+      if (_spyCategory.isCustom) ...[
+        const SizedBox(height: 14),
+        const _CustomWordsEditor(),
+      ],
       const SizedBox(height: 24),
       header(Icons.person_search_outlined, s['spies']),
       const SizedBox(height: 14),
@@ -345,6 +366,170 @@ class _NameField extends StatelessWidget {
         enabledBorder: border(0.16),
         focusedBorder: border(0.6),
         border: border(0.16),
+      ),
+    );
+  }
+}
+
+/// Where the player adds and removes their own Spy words. They are kept in
+/// the settings, so they are still there the next time.
+class _CustomWordsEditor extends StatefulWidget {
+  const _CustomWordsEditor();
+
+  @override
+  State<_CustomWordsEditor> createState() => _CustomWordsEditorState();
+}
+
+class _CustomWordsEditorState extends State<_CustomWordsEditor> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _add() async {
+    final settings = SettingsScope.read(context);
+    final typed = _controller.text;
+    // Clear on success only: a duplicate stays visible so it can be fixed.
+    if (await settings.addSpyWord(typed)) {
+      _controller.clear();
+      // The "add a word first" message no longer applies.
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    final settings = SettingsScope.of(context);
+    final words = settings.spyWords;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: const Key('customWordField'),
+                controller: _controller,
+                maxLength: SettingsController.maxSpyWordLength,
+                maxLines: 1,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _add(),
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: s['spy_custom_hint'],
+                  hintStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.4),
+                  ),
+                  counterText: '',
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.06),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GlassIconButton(
+              icon: Icons.add,
+              tooltip: s['add_word'],
+              onPressed: _add,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (words.isEmpty)
+          Text(
+            s['spy_custom_none'],
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.6),
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final word in words)
+                _WordChip(
+                  word: word,
+                  removeTooltip: s['remove_word'],
+                  onRemove: () => settings.removeSpyWord(word),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+/// A saved word with a small "x" to remove it.
+class _WordChip extends StatelessWidget {
+  const _WordChip({
+    required this.word,
+    required this.removeTooltip,
+    required this.onRemove,
+  });
+
+  final String word;
+  final String removeTooltip;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(left: 14, right: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        color: Colors.white.withValues(alpha: 0.08),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(word, style: const TextStyle(fontSize: 15)),
+          Tooltip(
+            message: removeTooltip,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onRemove,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

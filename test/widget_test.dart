@@ -24,6 +24,12 @@ class FakeRepository extends ContentRepository {
     'food': ['Pizza', 'Sushi', 'Soup'],
     'animals': ['Cat', 'Dog', 'Fox'],
     'jobs': ['Pilot', 'Chef', 'Doctor'],
+    'sports': ['Tennis', 'Golf', 'Judo'],
+    'countries': ['Spain', 'Japan', 'Peru'],
+    'transport': ['Tram', 'Boat', 'Taxi'],
+    'objects': ['Lamp', 'Key', 'Pen'],
+    'clothes': ['Hat', 'Scarf', 'Belt'],
+    'nature': ['Lake', 'Cave', 'Snow'],
   };
 
   /// The default category's words.
@@ -117,7 +123,7 @@ Finder inGame(String text) =>
 /// A window tall enough for the whole Spy setup page, so no scrolling (which
 /// can leave a button under the transparent app bar) is needed.
 void spyPhone(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1170, 3900);
+  tester.view.physicalSize = const Size(1170, 5400);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
 }
@@ -869,11 +875,23 @@ void main() {
       expect(enabled(tester, pills('spyCountPills', '2')), isFalse);
     });
 
-    testWidgets('word categories: Places by default, four to choose from', (
+    testWidgets('ten word categories plus your own, Places by default', (
       tester,
     ) async {
       await openSpy(tester);
-      for (final label in ['Places', 'Food', 'Animals', 'Jobs']) {
+      for (final label in [
+        'Places',
+        'Food',
+        'Animals',
+        'Jobs',
+        'Sports',
+        'Countries',
+        'Transport',
+        'Objects',
+        'Clothes',
+        'Nature',
+        'My words',
+      ]) {
         expect(pills('spyCategoryPills', label), findsOneWidget);
       }
       expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
@@ -881,6 +899,8 @@ void main() {
       await tapPill(tester, pills('spyCategoryPills', 'Food'));
       expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
       expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
+      // The own-words editor is only there for "My words".
+      expect(find.byKey(const Key('customWordField')), findsNothing);
     });
 
     for (final entry in {
@@ -888,6 +908,12 @@ void main() {
       'Food': 'food',
       'Animals': 'animals',
       'Jobs': 'jobs',
+      'Sports': 'sports',
+      'Countries': 'countries',
+      'Transport': 'transport',
+      'Objects': 'objects',
+      'Clothes': 'clothes',
+      'Nature': 'nature',
     }.entries) {
       testWidgets('the "${entry.key}" category uses its own words', (
         tester,
@@ -1194,6 +1220,162 @@ void main() {
       await loaded(tester);
       expect(ads.prepares, 0);
       expect(ads.startAds, 0);
+    });
+  });
+
+  group('own spy words', () {
+    test('words are tidied, deduplicated and saved', () async {
+      SharedPreferences.setMockInitialValues({});
+      final settings = await SettingsController.load();
+      expect(settings.spyWords, isEmpty);
+
+      expect(await settings.addSpyWord('  Giant   squid '), isTrue);
+      expect(settings.spyWords, ['Giant squid']);
+
+      // Nothing, only spaces, or the same word in other letters: rejected.
+      expect(await settings.addSpyWord(''), isFalse);
+      expect(await settings.addSpyWord('    '), isFalse);
+      expect(await settings.addSpyWord('GIANT SQUID'), isFalse);
+      expect(settings.spyWords, ['Giant squid']);
+
+      expect(await settings.addSpyWord('Moon'), isTrue);
+
+      // Survives a restart.
+      expect((await SettingsController.load()).spyWords, [
+        'Giant squid',
+        'Moon',
+      ]);
+    });
+
+    test('a word can be removed, and long ones are cut', () async {
+      SharedPreferences.setMockInitialValues({});
+      final settings = await SettingsController.load();
+      await settings.addSpyWord('Moon');
+      await settings.addSpyWord('x' * 80);
+      expect(
+        settings.spyWords.last.length,
+        SettingsController.maxSpyWordLength,
+      );
+
+      await settings.removeSpyWord('Moon');
+      expect(settings.spyWords, isNot(contains('Moon')));
+      expect((await SettingsController.load()).spyWords.length, 1);
+    });
+
+    test('there is a limit on how many words are kept', () async {
+      SharedPreferences.setMockInitialValues({});
+      final settings = await SettingsController.load();
+      for (var i = 0; i < SettingsController.maxSpyWords; i++) {
+        expect(await settings.addSpyWord('word $i'), isTrue);
+      }
+      expect(await settings.addSpyWord('one too many'), isFalse);
+      expect(settings.spyWords.length, SettingsController.maxSpyWords);
+    });
+
+    testWidgets('add words in the setup, then play with them', (tester) async {
+      spyPhone(tester);
+      final settings = SettingsController();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), settings: settings),
+      );
+      await openGame(tester, 'Spy');
+      await settle(tester);
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('spyCategoryPills')),
+          matching: find.text('My words'),
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('customWordField')), findsOneWidget);
+
+      // Nothing to play with yet: starting is refused with an explanation.
+      await startGame(tester);
+      await tester.pump();
+      expect(
+        find.text('Add at least one word to play with your own words'),
+        findsWidgets,
+      );
+      expect(find.byType(SpyGameScreen), findsNothing);
+
+      // Add a word (spaces tidied); it appears as a chip and is saved.
+      await tester.enterText(
+        find.byKey(const Key('customWordField')),
+        '  Giant   squid ',
+      );
+      await tester.tap(find.byTooltip('Add word'));
+      await tester.pump();
+      expect(find.text('Giant squid'), findsOneWidget);
+      expect(settings.spyWords, ['Giant squid']);
+      // The field is emptied for the next word.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('customWordField')))
+            .controller!
+            .text,
+        isEmpty,
+      );
+
+      // The same word again is not added twice, and stays in the field.
+      await tester.enterText(
+        find.byKey(const Key('customWordField')),
+        'giant squid',
+      );
+      await tester.tap(find.byTooltip('Add word'));
+      await tester.pump();
+      expect(settings.spyWords.length, 1);
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const Key('customWordField')))
+            .controller!
+            .text,
+        'giant squid',
+      );
+
+      // Play: everyone but the spy sees exactly that word.
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      final seen = <String>{};
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        if (find.byKey(const Key('spyWord')).evaluate().isNotEmpty) {
+          seen.add(
+            (tester.widget<Text>(find.byKey(const Key('spyWord')))).data!,
+          );
+        }
+        await tester.tap(
+          find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+      expect(seen, {'Giant squid'});
+    });
+
+    testWidgets('a saved word can be removed from the chip', (tester) async {
+      spyPhone(tester);
+      final settings = SettingsController(spyWords: ['Moon', 'Sun']);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), settings: settings),
+      );
+      await openGame(tester, 'Spy');
+      await settle(tester);
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('spyCategoryPills')),
+          matching: find.text('My words'),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Moon'), findsOneWidget);
+      expect(find.text('Sun'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Remove').first); // the "x" of Moon
+      await tester.pump();
+      expect(find.text('Moon'), findsNothing);
+      expect(find.text('Sun'), findsOneWidget);
+      expect(settings.spyWords, ['Sun']);
     });
   });
 }
