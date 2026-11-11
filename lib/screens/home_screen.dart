@@ -5,6 +5,7 @@ import '../models/game_mode.dart';
 import '../widgets/glass.dart';
 import '../widgets/rules_popover.dart';
 import '../widgets/gradient_background.dart';
+import 'settings_screen.dart';
 import 'setup_screen.dart';
 
 /// Shell with the bottom navigation: Home / Favorites / Packs / Stats.
@@ -99,8 +100,10 @@ class _GamesTab extends StatelessWidget {
                 icon: const Icon(Icons.workspace_premium, color: Colors.amber),
               ),
               IconButton.filledTonal(
-                tooltip: 'Settings',
-                onPressed: comingSoon,
+                tooltip: s['settings'],
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                ),
                 icon: const Icon(Icons.settings_outlined),
               ),
             ],

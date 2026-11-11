@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:party_games/data/content_repository.dart';
+import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
 import 'package:party_games/models/game_mode.dart';
 import 'package:party_games/screens/game_screen.dart';
@@ -21,6 +23,17 @@ class FakeRepository extends ContentRepository {
           kind: (file == 'truth' || file == 'dare') ? file : null,
         ),
   ];
+}
+
+/// Remembers which languages content was requested in.
+class RecordingRepository extends FakeRepository {
+  final languages = <String>[];
+
+  @override
+  Future<List<Prompt>> load(GameMode mode, String lang) {
+    languages.add(lang);
+    return super.load(mode, lang);
+  }
 }
 
 /// Fails the first `failures` loads, then behaves like [FakeRepository].
@@ -267,5 +280,92 @@ void main() {
     await tester.tapAt(const Offset(5, 400));
     await settle(tester);
     expect(find.textContaining('Change Type'), findsNothing);
+  });
+
+  group('settings', () {
+    test('are saved and restored', () async {
+      SharedPreferences.setMockInitialValues({});
+      final first = await SettingsController.load();
+      expect(first.locale, isNull); // follows the system by default
+      expect(first.haptics, isTrue);
+
+      await first.setLocale(const Locale('uk'));
+      await first.setHaptics(false);
+
+      final second = await SettingsController.load();
+      expect(second.locale, const Locale('uk'));
+      expect(second.haptics, isFalse);
+
+      await second.setLocale(null); // back to the system language
+      expect((await SettingsController.load()).locale, isNull);
+    });
+
+    testWidgets('language can be switched from the settings screen', (
+      tester,
+    ) async {
+      phone(tester);
+      final settings = SettingsController();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), settings: settings),
+      );
+
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+      expect(find.text('Settings'), findsWidgets);
+      for (final label in ['System default', 'English', 'Українська']) {
+        expect(find.text(label), findsOneWidget);
+      }
+
+      await tester.tap(find.text('Українська'));
+      await settle(tester);
+      expect(settings.locale, const Locale('uk'));
+      expect(find.text('Налаштування'), findsWidgets);
+
+      // The home screen behind it is translated too.
+      await tester.tap(find.byTooltip('Back'));
+      await settle(tester);
+      expect(find.text('Правда чи дія'), findsOneWidget);
+      expect(find.text('Truth or Dare'), findsNothing);
+    });
+
+    testWidgets('vibration can be switched off', (tester) async {
+      phone(tester);
+      final settings = SettingsController();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), settings: settings),
+      );
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+
+      expect(settings.haptics, isTrue);
+      await tester.tap(find.byType(Switch));
+      await settle(tester);
+      expect(settings.haptics, isFalse);
+    });
+
+    testWidgets('changing language in a game reloads the cards', (
+      tester,
+    ) async {
+      phone(tester);
+      final repository = RecordingRepository();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: repository, settings: SettingsController()),
+      );
+      await tester.tap(find.text('Truth or Dare'));
+      await settle(tester);
+      await startGame(tester);
+      await loaded(tester);
+      expect(repository.languages, ['en']);
+
+      // Open settings from the game's gear and switch to Ukrainian.
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+      await tester.tap(find.text('Українська'));
+      await settle(tester);
+      await tester.tap(find.byTooltip('Back'));
+      await settle(tester);
+
+      expect(repository.languages, ['en', 'uk']);
+    });
   });
 }

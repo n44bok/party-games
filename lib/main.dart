@@ -3,21 +3,53 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/content_repository.dart';
 import 'data/content_scope.dart';
+import 'data/settings.dart';
 import 'data/strings.dart';
 import 'screens/home_screen.dart';
 
-void main() => runApp(const PartyGamesApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final settings = await SettingsController.load();
+  runApp(PartyGamesApp(settings: settings));
+}
 
-class PartyGamesApp extends StatelessWidget {
-  const PartyGamesApp({super.key, this.repository});
+class PartyGamesApp extends StatefulWidget {
+  const PartyGamesApp({super.key, this.repository, this.settings});
 
   /// Override to supply content from somewhere other than the asset bundle.
   final ContentRepository? repository;
 
+  /// Preferences; defaults to fresh in-memory ones (used by tests).
+  final SettingsController? settings;
+
+  @override
+  State<PartyGamesApp> createState() => _PartyGamesAppState();
+}
+
+class _PartyGamesAppState extends State<PartyGamesApp> {
+  late final SettingsController _settings =
+      widget.settings ?? SettingsController();
+
+  @override
+  void dispose() {
+    // Only dispose what we created ourselves.
+    if (widget.settings == null) _settings.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Rebuild the whole app when the language changes.
+    return ListenableBuilder(
+      listenable: _settings,
+      builder: (context, _) => _buildApp(),
+    );
+  }
+
+  Widget _buildApp() {
     return MaterialApp(
       title: 'Party Games',
+      locale: _settings.locale,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
@@ -47,9 +79,12 @@ class PartyGamesApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      builder: (context, child) => ContentScope(
-        repository: repository ?? ContentRepository(),
-        child: child!,
+      builder: (context, child) => SettingsScope(
+        settings: _settings,
+        child: ContentScope(
+          repository: widget.repository ?? ContentRepository(),
+          child: child!,
+        ),
       ),
       home: const HomeScreen(),
     );

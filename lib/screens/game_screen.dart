@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../data/content_repository.dart';
 import '../data/content_scope.dart';
+import '../data/settings.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
+import 'settings_screen.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({
@@ -33,6 +36,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   List<Prompt>? _deck;
   Object? _error;
+  String? _loadedLang; // language the current deck was loaded in
   int _index = 0;
   int _turn = 0; // number of prompts shown so far; drives current player
   int _cardKey = 0; // bumps on every change so the card animates
@@ -40,17 +44,21 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_deck == null) _load();
+    // Also reload when the language is switched from the settings screen.
+    if (Strings.of(context).code != _loadedLang) _load();
   }
 
   Future<void> _load() async {
     final s = Strings.of(context);
     final repo = widget.repository ?? ContentScope.of(context);
+    _loadedLang = s.code;
     try {
       final all = await repo.load(widget.mode, s.code);
       if (!mounted) return;
       setState(() {
         _error = null;
+        _index = 0;
+        _cardKey++;
         _deck =
             all
                 .where(
@@ -66,6 +74,10 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  void _haptic() {
+    if (SettingsScope.of(context).haptics) HapticFeedback.selectionClick();
+  }
+
   void _retry() {
     setState(() => _error = null);
     _load();
@@ -76,6 +88,7 @@ class _GameScreenState extends State<GameScreen> {
       widget.playerNames[_turn % widget.playerNames.length];
 
   void _next() {
+    _haptic();
     setState(() {
       _turn++;
       _cardKey++;
@@ -87,6 +100,7 @@ class _GameScreenState extends State<GameScreen> {
 
   /// Truth or Dare: swap the current prompt for one of the other kind.
   void _changeType() {
+    _haptic();
     final deck = _deck!;
     final current = deck[_index].kind;
     for (var step = 1; step < deck.length; step++) {
@@ -121,10 +135,10 @@ class _GameScreenState extends State<GameScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Settings',
-            onPressed: () =>
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(s['coming_soon']))),
+            tooltip: s['settings'],
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
             icon: const Icon(Icons.settings_outlined),
           ),
           const SizedBox(width: 4),
