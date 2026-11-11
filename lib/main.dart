@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'ads/ad_service.dart';
+import 'ads/google_ad_service.dart';
 import 'data/content_repository.dart';
 import 'data/content_scope.dart';
 import 'data/settings.dart';
@@ -10,17 +12,32 @@ import 'screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = await SettingsController.load();
-  runApp(PartyGamesApp(settings: settings));
+  final ads = GoogleAdService(settings);
+  // Starting the ads SDK can be slow (or fail offline); never hold the app
+  // back for it.
+  await ads.initialize().timeout(
+    const Duration(seconds: 3),
+    onTimeout: () => debugPrint('Ads SDK is slow to start; continuing.'),
+  );
+  runApp(PartyGamesApp(settings: settings, ads: ads));
 }
 
 class PartyGamesApp extends StatefulWidget {
-  const PartyGamesApp({super.key, this.repository, this.settings});
+  const PartyGamesApp({
+    super.key,
+    this.repository,
+    this.settings,
+    this.ads = const NoAdService(),
+  });
 
   /// Override to supply content from somewhere other than the asset bundle.
   final ContentRepository? repository;
 
   /// Preferences; defaults to fresh in-memory ones (used by tests).
   final SettingsController? settings;
+
+  /// Ads; none unless provided (so tests never touch the ads SDK).
+  final AdService ads;
 
   @override
   State<PartyGamesApp> createState() => _PartyGamesAppState();
@@ -81,9 +98,12 @@ class _PartyGamesAppState extends State<PartyGamesApp> {
       ],
       builder: (context, child) => SettingsScope(
         settings: _settings,
-        child: ContentScope(
-          repository: widget.repository ?? ContentRepository(),
-          child: child!,
+        child: AdScope(
+          service: widget.ads,
+          child: ContentScope(
+            repository: widget.repository ?? ContentRepository(),
+            child: child!,
+          ),
         ),
       ),
       home: const HomeScreen(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../ads/ad_service.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
 import '../widgets/glass.dart';
@@ -156,7 +157,11 @@ class _GamesTab extends StatelessWidget {
               ],
             ),
           ),
-          // TODO(ads): banner placeholder goes here.
+          // Banner under the games; takes no space until an ad has loaded.
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 8),
+            child: Center(child: AdScope.of(context).buildBanner()),
+          ),
         ],
       ),
     );

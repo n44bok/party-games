@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
+import '../ads/ad_service.dart';
 import '../data/content_repository.dart';
 import '../data/content_scope.dart';
 import '../data/settings.dart';
@@ -95,7 +96,8 @@ class _GameScreenState extends State<GameScreen> {
       _index = (_index + 1) % _deck!.length;
       if (_index == 0) _deck!.shuffle();
     });
-    // TODO(ads): show interstitial every N rounds, between rounds only.
+    // Full-screen ads only come between rounds, every few of them.
+    AdScope.of(context).onRoundFinished();
   }
 
   /// Truth or Dare: swap the current prompt for one of the other kind.

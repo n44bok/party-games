@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:party_games/ads/ad_service.dart';
 import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
@@ -34,6 +35,17 @@ class RecordingRepository extends FakeRepository {
     languages.add(lang);
     return super.load(mode, lang);
   }
+}
+
+/// Counts rounds and shows a recognizable banner.
+class FakeAdService implements AdService {
+  int rounds = 0;
+
+  @override
+  Widget buildBanner() => const SizedBox(key: Key('fake_banner'), height: 50);
+
+  @override
+  void onRoundFinished() => rounds++;
 }
 
 /// Fails the first `failures` loads, then behaves like [FakeRepository].
@@ -410,5 +422,68 @@ void main() {
         expect(find.text('Purchases will be available soon'), findsWidgets);
       });
     }
+  });
+
+  group('ads', () {
+    test('a full-screen ad is due every N rounds', () {
+      final pacer = InterstitialPacer(every: 3);
+      expect(
+        [for (var i = 0; i < 7; i++) pacer.onRound()],
+        [false, false, true, false, false, true, false],
+      );
+    });
+
+    test('the default is one ad every 6 rounds', () {
+      final pacer = InterstitialPacer();
+      final due = [for (var i = 1; i <= 12; i++) pacer.onRound()];
+      expect(
+        [
+          for (var i = 0; i < 12; i++)
+            if (due[i]) i + 1,
+        ],
+        [6, 12],
+      );
+    });
+
+    test('"ads removed" is saved and restored', () async {
+      SharedPreferences.setMockInitialValues({});
+      final first = await SettingsController.load();
+      expect(first.adsRemoved, isFalse);
+      await first.setAdsRemoved(true);
+      expect((await SettingsController.load()).adsRemoved, isTrue);
+    });
+
+    testWidgets('the home screen shows the banner', (tester) async {
+      phone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), ads: FakeAdService()),
+      );
+      expect(find.byKey(const Key('fake_banner')), findsOneWidget);
+    });
+
+    testWidgets('every finished round is reported, not skips or type swaps', (
+      tester,
+    ) async {
+      phone(tester);
+      final ads = FakeAdService();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), ads: ads),
+      );
+      await tester.tap(find.text('Truth or Dare'));
+      await settle(tester);
+      await startGame(tester);
+      await loaded(tester);
+      expect(ads.rounds, 0);
+
+      await tester.tap(find.text('Change Type'));
+      await settle(tester);
+      expect(ads.rounds, 0); // changing the card type is not a round
+
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text('Next'));
+        await settle(tester);
+      }
+      expect(ads.rounds, 3);
+    });
   });
 }

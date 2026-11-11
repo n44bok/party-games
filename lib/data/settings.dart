@@ -14,12 +14,15 @@ class SettingsController extends ChangeNotifier {
     SharedPreferences? prefs,
     Locale? locale,
     bool haptics = true,
+    bool adsRemoved = false,
   }) : _prefs = prefs,
        _locale = locale,
-       _haptics = haptics;
+       _haptics = haptics,
+       _adsRemoved = adsRemoved;
 
   static const _localeKey = 'locale';
   static const _hapticsKey = 'haptics';
+  static const _adsRemovedKey = 'adsRemoved';
 
   /// Reads the saved preferences. Falls back to defaults if storage fails, so
   /// a broken preferences file never prevents the app from starting.
@@ -31,6 +34,7 @@ class SettingsController extends ChangeNotifier {
         prefs: prefs,
         locale: code == null ? null : Locale(code),
         haptics: prefs.getBool(_hapticsKey) ?? true,
+        adsRemoved: prefs.getBool(_adsRemovedKey) ?? false,
       );
     } catch (e) {
       debugPrint('Could not load settings, using defaults: $e');
@@ -42,12 +46,23 @@ class SettingsController extends ChangeNotifier {
 
   Locale? _locale;
   bool _haptics;
+  bool _adsRemoved;
 
   /// `null` means "follow the system language".
   Locale? get locale => _locale;
 
   /// Whether a light vibration accompanies card changes.
   bool get haptics => _haptics;
+
+  /// True once Premium has been bought: no ad is requested or shown.
+  bool get adsRemoved => _adsRemoved;
+
+  Future<void> setAdsRemoved(bool value) async {
+    if (value == _adsRemoved) return;
+    _adsRemoved = value;
+    notifyListeners();
+    await _prefs?.setBool(_adsRemovedKey, value);
+  }
 
   Future<void> setLocale(Locale? value) async {
     if (value == _locale) return;
