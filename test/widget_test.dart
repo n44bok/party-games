@@ -890,6 +890,7 @@ void main() {
         'Objects',
         'Clothes',
         'Nature',
+        'One word',
         'My words',
       ]) {
         expect(pills('spyCategoryPills', label), findsOneWidget);
@@ -1467,6 +1468,107 @@ void main() {
       await tester.pump(const Duration(seconds: 30));
       expect(find.text('0:15'), findsOneWidget); // paused
       expect(find.text('Hurry up!'), findsOneWidget);
+    });
+  });
+
+  group('one word for this game', () {
+    Finder categoryPill(String label) => find.descendant(
+      of: find.byKey(const Key('spyCategoryPills')),
+      matching: find.text(label),
+    );
+
+    Future<SettingsController> openSetup(WidgetTester tester) async {
+      spyPhone(tester);
+      final settings = SettingsController();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), settings: settings),
+      );
+      await openGame(tester, 'Spy');
+      await settle(tester);
+      return settings;
+    }
+
+    testWidgets('a field appears for it, and for nothing else', (tester) async {
+      await openSetup(tester);
+      expect(find.byKey(const Key('singleWordField')), findsNothing);
+
+      await tester.tap(categoryPill('One word'));
+      await tester.pump();
+      expect(find.byKey(const Key('singleWordField')), findsOneWidget);
+      expect(find.text('Used only for this game, not saved'), findsOneWidget);
+      // The saved-words editor is a different category.
+      expect(find.byKey(const Key('customWordField')), findsNothing);
+
+      await tester.tap(categoryPill('Food'));
+      await tester.pump();
+      expect(find.byKey(const Key('singleWordField')), findsNothing);
+    });
+
+    testWidgets('the game needs the word first', (tester) async {
+      await openSetup(tester);
+      await tester.tap(categoryPill('One word'));
+      await tester.pump();
+
+      await startGame(tester);
+      await tester.pump();
+      expect(find.text('Type the word for this game first'), findsWidgets);
+      expect(find.byType(SpyGameScreen), findsNothing);
+
+      // Only spaces is still nothing.
+      await tester.enterText(find.byKey(const Key('singleWordField')), '   ');
+      await startGame(tester);
+      await tester.pump();
+      expect(find.byType(SpyGameScreen), findsNothing);
+    });
+
+    testWidgets('everyone but the spy sees exactly that word, unsaved', (
+      tester,
+    ) async {
+      final settings = await openSetup(tester);
+      await tester.tap(categoryPill('One word'));
+      await tester.pump();
+      await tester.enterText(
+        find.byKey(const Key('singleWordField')),
+        '  Mars   rover ',
+      );
+
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      final seen = <String>{};
+      var spies = 0;
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        if (find.byKey(const Key('spyWord')).evaluate().isNotEmpty) {
+          seen.add(
+            (tester.widget<Text>(find.byKey(const Key('spyWord')))).data!,
+          );
+        } else {
+          spies++;
+        }
+        await tester.tap(
+          find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+      expect(spies, 1);
+      expect(seen, {'Mars rover'}); // spaces tidied
+
+      // Not saved: it is not among "My words", and a fresh setup starts
+      // with an empty field.
+      expect(settings.spyWords, isEmpty);
+      Navigator.of(tester.element(find.byType(SpyGameScreen)))
+          .popUntil((route) => route.isFirst);
+      await tester.pumpAndSettle();
+      await openGame(tester, 'Spy');
+      await settle(tester);
+      await tester.tap(categoryPill('One word'));
+      await tester.pump();
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('singleWordField')),
+      );
+      expect(field.controller!.text, isEmpty);
     });
   });
 }

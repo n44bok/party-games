@@ -37,6 +37,9 @@ class _SetupScreenState extends State<SetupScreen> {
 
   // Spy options.
   SpyCategory _spyCategory = SpyCategory.places;
+
+  /// The word typed for "One word"; only for this game, never saved.
+  final _singleWord = TextEditingController();
   int _spies = 1;
   int _minutes = 8;
 
@@ -58,6 +61,7 @@ class _SetupScreenState extends State<SetupScreen> {
     for (final c in _names) {
       c.dispose();
     }
+    _singleWord.dispose();
     super.dispose();
   }
 
@@ -84,14 +88,26 @@ class _SetupScreenState extends State<SetupScreen> {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     // Own words: there must be something to play with.
-    final customWords = SettingsScope.read(context).spyWords;
-    if (widget.mode == GameMode.spy &&
-        _spyCategory.isCustom &&
-        customWords.isEmpty) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(s['spy_custom_empty'])));
-      return;
+    final savedWords = SettingsScope.read(context).spyWords;
+    final singleWord = SettingsController.cleanSpyWord(_singleWord.text);
+    if (widget.mode == GameMode.spy) {
+      final missing = _spyCategory.isSingle
+          ? singleWord == null
+          : _spyCategory.isCustom && savedWords.isEmpty;
+      if (missing) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                _spyCategory.isSingle
+                    ? s['spy_single_empty']
+                    : s['spy_custom_empty'],
+              ),
+            ),
+          );
+        return;
+      }
     }
 
     // An empty field falls back to "Player N".
@@ -109,7 +125,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 spies: _spies,
                 duration: Duration(minutes: _minutes),
                 category: _spyCategory,
-                customWords: customWords,
+                customWords: _spyCategory.isSingle ? [singleWord!] : savedWords,
               )
             : GameScreen(
                 mode: widget.mode,
@@ -158,6 +174,10 @@ class _SetupScreenState extends State<SetupScreen> {
         selected: _spyCategory,
         onSelected: (c) => setState(() => _spyCategory = c),
       ),
+      if (_spyCategory.isSingle) ...[
+        const SizedBox(height: 14),
+        _SingleWordField(controller: _singleWord),
+      ],
       if (_spyCategory.isCustom) ...[
         const SizedBox(height: 14),
         const _CustomWordsEditor(),
@@ -367,6 +387,59 @@ class _NameField extends StatelessWidget {
         focusedBorder: border(0.6),
         border: border(0.16),
       ),
+    );
+  }
+}
+
+/// One word for this game only: typed here, never saved.
+class _SingleWordField extends StatelessWidget {
+  const _SingleWordField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    OutlineInputBorder border(double alpha) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: Colors.white.withValues(alpha: alpha)),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          key: const Key('singleWordField'),
+          controller: controller,
+          maxLength: SettingsController.maxSpyWordLength,
+          maxLines: 1,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.done,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(
+            hintText: s['spy_single_hint'],
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+            counterText: '',
+            isDense: true,
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.06),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
+            border: border(0.16),
+            enabledBorder: border(0.16),
+            focusedBorder: border(0.6),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          s['spy_single_note'],
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.white.withValues(alpha: 0.6),
+          ),
+        ),
+      ],
     );
   }
 }
