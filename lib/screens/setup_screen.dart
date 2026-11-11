@@ -12,6 +12,7 @@ import '../widgets/multi_select.dart';
 import '../widgets/gradient_background.dart';
 import '../spy/spy_round.dart';
 import '../mafia/mafia_round.dart';
+import 'charades_game_screen.dart';
 import 'game_screen.dart';
 import 'mafia_game_screen.dart';
 import 'spy_game_screen.dart';
@@ -47,6 +48,10 @@ class _SetupScreenState extends State<SetupScreen> {
   int _spies = 1;
   int _minutes = 8;
 
+  // Charades options.
+  int _turnSeconds = 60;
+  int _rounds = 1;
+
   // Mafia options.
   int _mafia = 1;
   bool _doctor = true;
@@ -60,7 +65,19 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.mode.isRoleGame) {
+    if (widget.mode == GameMode.charades) {
+      // Words that are fun to act out.
+      _spyCategories
+        ..clear()
+        ..addAll(const [
+          SpyCategory.animals,
+          SpyCategory.jobs,
+          SpyCategory.objects,
+          SpyCategory.sports,
+          SpyCategory.food,
+        ]);
+    }
+    if (widget.mode.hasStartAd) {
       // Spy and Mafia show their one ad when the game starts, so have it loaded by then.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) AdScope.read(context).prepareInterstitial();
@@ -130,6 +147,12 @@ class _SetupScreenState extends State<SetupScreen> {
             detective: _detective,
             appRunsNights: _appRunsNights,
             duration: Duration(minutes: _minutes),
+          ),
+          GameMode.charades => CharadesGameScreen(
+            playerNames: names,
+            categories: Set.of(_spyCategories),
+            turnSeconds: _turnSeconds,
+            rounds: _rounds,
           ),
           GameMode.spy => SpyGameScreen(
             playerNames: names,
@@ -209,6 +232,9 @@ class _SetupScreenState extends State<SetupScreen> {
     );
 
     if (widget.mode == GameMode.mafia) return _mafiaOptions(s, header, divider);
+    if (widget.mode == GameMode.charades) {
+      return _charadesOptions(s, header, divider);
+    }
 
     if (widget.mode != GameMode.spy) {
       return [
@@ -283,6 +309,55 @@ class _SetupScreenState extends State<SetupScreen> {
           setState(() => _timeWarning = value);
           SettingsScope.read(context).setTimeWarning(value); // remember it
         },
+      ),
+    ];
+  }
+
+  /// Charades: word categories, time per turn and rounds.
+  List<Widget> _charadesOptions(
+    Strings s,
+    Widget Function(IconData, String) header,
+    Widget divider,
+  ) {
+    return [
+      divider,
+      header(Icons.category_outlined, s['spy_words']),
+      const SizedBox(height: 14),
+      MultiSelectField<SpyCategory>(
+        fieldKey: const Key('spyCategorySelector'),
+        options: [
+          for (final c in SpyCategory.builtIn)
+            MultiSelectOption(value: c, id: c.id, label: s[c.labelKey]),
+        ],
+        selected: _spyCategories,
+        summary: _categorySummary(s),
+        title: s['spy_pick_categories'],
+        selectAllLabel: s['select_all'],
+        doneLabel: s['done'],
+        onToggle: _toggleCategory,
+        onSelectAll: _selectAllCategories,
+        allSelected: () => SpyCategory.builtIn.every(_spyCategories.contains),
+      ),
+      const SizedBox(height: 24),
+      header(Icons.timer_outlined, s['turn_time']),
+      const SizedBox(height: 14),
+      OptionPills<int>(
+        key: const Key('turnTimePills'),
+        options: [
+          for (final n in const [30, 60, 90])
+            (n, s.format('seconds', {'n': n})),
+        ],
+        selected: _turnSeconds,
+        onSelected: (n) => setState(() => _turnSeconds = n),
+      ),
+      const SizedBox(height: 24),
+      header(Icons.repeat_rounded, s['rounds']),
+      const SizedBox(height: 14),
+      OptionPills<int>(
+        key: const Key('roundsPills'),
+        options: const [(1, '1'), (2, '2'), (3, '3')],
+        selected: _rounds,
+        onSelected: (n) => setState(() => _rounds = n),
       ),
     ];
   }

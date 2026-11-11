@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:party_games/ads/ad_service.dart';
+import 'package:party_games/charades/charades_deck.dart';
 import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
@@ -15,6 +16,7 @@ import 'package:party_games/screens/setup_screen.dart';
 import 'package:party_games/screens/spy_game_screen.dart';
 import 'package:party_games/spy/spy_round.dart';
 import 'package:party_games/widgets/glass.dart';
+import 'package:party_games/widgets/round_parts.dart';
 import 'package:party_games/widgets/glass_pill.dart';
 
 import 'dart:math' show Random;
@@ -441,11 +443,11 @@ void main() {
     await tester.pumpWidget(app());
 
     // One help button per game card.
-    expect(find.byTooltip('Rules'), findsNWidgets(8));
+    expect(find.byTooltip('Rules'), findsNWidgets(9));
 
-    // The third card is Truth or Dare (Spy and Mafia come first); the help
-    // button must not open the game.
-    await tester.tap(find.byTooltip('Rules').at(2));
+    // The fourth card is Truth or Dare (Spy, Mafia and Charades come first);
+    // the help button must not open the game.
+    await tester.tap(find.byTooltip('Rules').at(3));
     await settle(tester);
     expect(find.textContaining('Change Type'), findsOneWidget);
     expect(find.text('Start Game'), findsNothing);
@@ -2207,6 +2209,149 @@ void main() {
       await tester.tap(find.byTooltip('Rules').at(1));
       await settle(tester);
       expect(find.textContaining('secret role'), findsOneWidget);
+    });
+  });
+
+  group('charades', () {
+    test('the deck deals every word once before repeating', () {
+      final deck = CharadesDeck(['a', 'b', 'c', 'd'], random: Random(4));
+      final firstPass = {for (var i = 0; i < 4; i++) deck.next()};
+      expect(firstPass, {'a', 'b', 'c', 'd'});
+      final secondPass = {for (var i = 0; i < 4; i++) deck.next()};
+      expect(secondPass, {'a', 'b', 'c', 'd'});
+    });
+
+    test('a reshuffle never starts with the word just played', () {
+      for (var seed = 0; seed < 50; seed++) {
+        final deck = CharadesDeck(['a', 'b', 'c'], random: Random(seed));
+        var last = '';
+        for (var i = 0; i < 30; i++) {
+          final word = deck.next();
+          expect(word, isNot(last));
+          last = word;
+        }
+      }
+    });
+
+    test('the winners are those with the top score', () {
+      expect(charadesWinners([1, 3, 2]), [1]);
+      expect(charadesWinners([2, 0, 2]), [0, 2]);
+    });
+
+    Future<void> startCharades(WidgetTester tester) async {
+      spyPhone(tester);
+      await tester.pumpWidget(app());
+      await openGame(tester, 'Charades');
+      await settle(tester);
+      expect(find.byKey(const Key('turnTimePills')), findsOneWidget);
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+    }
+
+    String word(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('charadesWord'))).data!;
+
+    testWidgets('is third and starts with four players', (tester) async {
+      expect(GameMode.values[2], GameMode.charades);
+      spyPhone(tester);
+      await tester.pumpWidget(app());
+      await openGame(tester, 'Charades');
+      await settle(tester);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
+        '4',
+      );
+    });
+
+    testWidgets('a turn: act, guess, skip, time runs out', (tester) async {
+      await startCharades(tester);
+      expect(find.byKey(const Key('charadesRound')), findsOneWidget);
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('charadesActor')))
+            .text,
+        'Player 1',
+      );
+      await tester.tap(find.text("I'm ready"));
+      await settle(tester);
+
+      expect(find.text('1:00'), findsOneWidget);
+      expect(find.text('Score: 0'), findsOneWidget);
+      final first = word(tester);
+      await tester.tap(find.text('Guessed'));
+      await tester.pump();
+      expect(find.text('Score: 1'), findsOneWidget);
+      expect(word(tester), isNot(first));
+
+      // Skipping gives a new word and no point.
+      final before = word(tester);
+      await tester.tap(find.text('Skip'));
+      await tester.pump();
+      expect(word(tester), isNot(before));
+      expect(find.text('Score: 1'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 60));
+      await tester.pump();
+      expect(find.text("Time's up!"), findsOneWidget);
+      expect(find.text('Guessed this turn: 1'), findsOneWidget);
+
+      await tester.tap(find.text('Next player'));
+      await settle(tester);
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('charadesActor')))
+            .text,
+        'Player 2',
+      );
+    });
+
+    testWidgets('after everyone has acted the best score wins', (tester) async {
+      await startCharades(tester);
+      // Player 1 guesses two words, the others none.
+      for (var turn = 0; turn < 4; turn++) {
+        await tester.tap(find.text("I'm ready"));
+        await settle(tester);
+        if (turn == 0) {
+          await tester.tap(find.text('Guessed'));
+          await tester.pump();
+          await tester.tap(find.text('Guessed'));
+          await tester.pump();
+        }
+        await tester.pump(const Duration(seconds: 60));
+        await tester.pump();
+        await tester.tap(
+          find.text(turn == 3 ? 'See the results' : 'Next player'),
+        );
+        await settle(tester);
+      }
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('charadesWinner')))
+            .text,
+        'Player 1 wins!',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('charadesFinal0'))).data,
+        '2',
+      );
+
+      await tester.tap(find.text('Play again'));
+      await settle(tester);
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('charadesActor')))
+            .text,
+        'Player 1',
+      );
+    });
+
+    testWidgets('its rules are explained in the help popover', (tester) async {
+      phone(tester);
+      await tester.pumpWidget(app());
+      await tester.tap(find.byTooltip('Rules').at(2));
+      await settle(tester);
+      expect(find.textContaining('gestures only'), findsOneWidget);
     });
   });
 }
