@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter/material.dart';
 
 import '../data/content_repository.dart';
@@ -29,6 +30,7 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   List<Prompt>? _deck;
+  Object? _error;
   int _index = 0;
   int _turn = 0; // number of prompts shown so far; drives current player
   int _cardKey = 0; // bumps on every change so the card animates
@@ -42,17 +44,29 @@ class _GameScreenState extends State<GameScreen> {
   Future<void> _load() async {
     final s = Strings.of(context);
     final repo = widget.repository ?? ContentScope.of(context);
-    final all = await repo.load(widget.mode, s.code);
-    if (!mounted) return;
-    setState(() {
-      _deck =
-          all
-              .where(
-                (p) => widget.category == null || p.category == widget.category,
-              )
-              .toList()
-            ..shuffle();
-    });
+    try {
+      final all = await repo.load(widget.mode, s.code);
+      if (!mounted) return;
+      setState(() {
+        _error = null;
+        _deck =
+            all
+                .where(
+                  (p) =>
+                      widget.category == null || p.category == widget.category,
+                )
+                .toList()
+              ..shuffle();
+      });
+    } catch (e, st) {
+      debugPrint('Failed to load ${widget.mode.id} (${s.code}): $e\n$st');
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
+  void _retry() {
+    setState(() => _error = null);
+    _load();
   }
 
   void _next() {
@@ -112,7 +126,14 @@ class _GameScreenState extends State<GameScreen> {
       ),
       body: GradientBackground(
         child: SafeArea(
-          child: deck == null
+          child: _error != null
+              ? _LoadError(
+                  message: s['load_error'],
+                  details: kDebugMode ? '$_error' : null,
+                  retryLabel: s['retry'],
+                  onRetry: _retry,
+                )
+              : deck == null
               ? const Center(child: CircularProgressIndicator())
               : deck.isEmpty
               ? Center(child: Text(s['empty']))
@@ -344,4 +365,49 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WavePainter oldDelegate) => false;
+}
+
+class _LoadError extends StatelessWidget {
+  const _LoadError({
+    required this.message,
+    required this.retryLabel,
+    required this.onRetry,
+    this.details,
+  });
+
+  final String message;
+  final String retryLabel;
+  final String? details;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, size: 56),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            if (details != null) ...[
+              const SizedBox(height: 8),
+              Text(details!, textAlign: TextAlign.center),
+            ],
+            const SizedBox(height: 20),
+            GlassButton(
+              label: retryLabel,
+              icon: Icons.refresh_rounded,
+              onPressed: onRetry,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

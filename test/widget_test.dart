@@ -22,6 +22,19 @@ class FakeRepository extends ContentRepository {
   ];
 }
 
+/// Fails the first `failures` loads, then behaves like [FakeRepository].
+class FlakyRepository extends FakeRepository {
+  FlakyRepository(this.failures);
+
+  int failures;
+
+  @override
+  Future<List<Prompt>> load(GameMode mode, String lang) {
+    if (failures-- > 0) throw StateError('boom');
+    return super.load(mode, lang);
+  }
+}
+
 Widget app() => PartyGamesApp(repository: FakeRepository());
 
 void phone(WidgetTester tester) {
@@ -140,6 +153,23 @@ void main() {
     await settle(tester);
     expect(find.text(wasTruth ? 'Dare' : 'Truth'), findsOneWidget);
     // Changing type does not advance the turn.
+    expect(find.text('Player 1 of 4'), findsOneWidget);
+  });
+
+  testWidgets('load failure shows an error and can be retried', (tester) async {
+    phone(tester);
+    await tester.pumpWidget(PartyGamesApp(repository: FlakyRepository(1)));
+    await tester.tap(find.text('Truth or Dare'));
+    await settle(tester);
+    await tester.tap(find.text('Start Game'));
+    await settle(tester);
+    await settle(tester);
+
+    expect(find.text('Could not load content'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    await tester.tap(find.text('Try again'));
+    await loaded(tester);
     expect(find.text('Player 1 of 4'), findsOneWidget);
   });
 }
