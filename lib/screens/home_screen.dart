@@ -198,93 +198,100 @@ class _ModeCard extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
 
+  static const _radius = 22.0;
+  static const _border = 1.3;
+
   @override
   Widget build(BuildContext context) {
-    // Ink paints on the nearest Material; without this one it would paint on
-    // the Scaffold's, i.e. underneath GradientBackground, and be invisible.
-    // The glow lives outside Ink: Ink clips its decoration to its own bounds,
-    // which would cut a shadow into a rectangle.
+    final glow = mode.glow;
+    // Outer box paints the gradient border; the inner one is the glass body.
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: mode.colors.first.withValues(alpha: 0.3),
-            blurRadius: 24,
-            spreadRadius: -4,
-          ),
-        ],
+        borderRadius: BorderRadius.circular(_radius),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.55),
+            glow.withValues(alpha: 0.45),
+            Colors.white.withValues(alpha: 0.10),
+            glow.withValues(alpha: 0.5),
+          ],
+          stops: const [0.0, 0.35, 0.7, 1.0],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: mode.colors,
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(22),
-            onTap: onTap,
-            child: Stack(
-              children: [
-                // Glossy highlight along the top edge.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: 56,
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(22),
-                        ),
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withValues(alpha: 0.22),
-                            Colors.white.withValues(alpha: 0),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
+      child: Padding(
+        padding: const EdgeInsets.all(_border),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(_radius - _border),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Dark, slightly see-through glass.
+              ColoredBox(
+                color: const Color(0xFF140B2B).withValues(alpha: 0.62),
+              ),
+              // Colored glow entering from a corner.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: mode.glowAlignment,
+                    radius: 1.15,
+                    colors: [
+                      glow.withValues(alpha: 0.75),
+                      glow.withValues(alpha: 0.22),
+                      glow.withValues(alpha: 0),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+              // Faint sheen on the top edge.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0.12),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                    stops: const [0.0, 0.4],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(mode.icon, size: 38, color: mode.tint),
+                      const SizedBox(height: 6),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          height: 1.15,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(mode.icon, size: 38, color: Colors.white),
-                        const SizedBox(height: 6),
-                        Text(
-                          title,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            height: 1.15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+              Material(
+                type: MaterialType.transparency,
+                child: InkWell(onTap: onTap),
+              ),
+            ],
           ),
         ),
       ),

@@ -50,6 +50,33 @@ enum GameMode {
 
   Color get color => colors.last;
 
+  /// Accent that glows in from a corner of the home-screen card.
+  Color get glow => switch (this) {
+    truthOrDare => const Color(0xFFFF4F92),
+    mostLikely => const Color(0xFF8A5CFF),
+    neverHaveIEver => const Color(0xFFE0457A),
+    thisOrThat => const Color(0xFF3F7BFF),
+    wouldYouRather => const Color(0xFF1FB8AE),
+    randomChallenge => const Color(0xFFF2A04A),
+  };
+
+  /// Where the glow starts inside the card.
+  Alignment get glowAlignment => switch (this) {
+    mostLikely => const Alignment(0.9, -1.0),
+    randomChallenge => const Alignment(0.9, 1.0),
+    _ => const Alignment(-0.9, -1.0),
+  };
+
+  /// Pastel version of [glow] for the card icon.
+  Color get tint => switch (this) {
+    truthOrDare => const Color(0xFFFF9EC4),
+    mostLikely => const Color(0xFFC9A8FF),
+    neverHaveIEver => const Color(0xFFFF9FB5),
+    thisOrThat => const Color(0xFF9AD4FF),
+    wouldYouRather => const Color(0xFFA6EAF2),
+    randomChallenge => const Color(0xFFFFE6C8),
+  };
+
   LinearGradient get gradient => LinearGradient(
     colors: colors,
     begin: Alignment.topLeft,
