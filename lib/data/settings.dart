@@ -15,17 +15,20 @@ class SettingsController extends ChangeNotifier {
     Locale? locale,
     bool haptics = true,
     bool adsRemoved = false,
+    bool timeWarning = true,
     List<String> spyWords = const [],
   }) : _prefs = prefs,
        _locale = locale,
        _haptics = haptics,
        _adsRemoved = adsRemoved,
+       _timeWarning = timeWarning,
        _spyWords = List.of(spyWords);
 
   static const _localeKey = 'locale';
   static const _hapticsKey = 'haptics';
   static const _adsRemovedKey = 'adsRemoved';
   static const _spyWordsKey = 'spyWords';
+  static const _timeWarningKey = 'timeWarning';
 
   /// Longest custom word kept, and how many may be saved.
   static const maxSpyWordLength = 30;
@@ -42,6 +45,7 @@ class SettingsController extends ChangeNotifier {
         locale: code == null ? null : Locale(code),
         haptics: prefs.getBool(_hapticsKey) ?? true,
         adsRemoved: prefs.getBool(_adsRemovedKey) ?? false,
+        timeWarning: prefs.getBool(_timeWarningKey) ?? true,
         spyWords: prefs.getStringList(_spyWordsKey) ?? const [],
       );
     } catch (e) {
@@ -55,6 +59,7 @@ class SettingsController extends ChangeNotifier {
   Locale? _locale;
   bool _haptics;
   bool _adsRemoved;
+  bool _timeWarning;
   final List<String> _spyWords;
 
   /// `null` means "follow the system language".
@@ -71,6 +76,16 @@ class SettingsController extends ChangeNotifier {
     _adsRemoved = value;
     notifyListeners();
     await _prefs?.setBool(_adsRemovedKey, value);
+  }
+
+  /// Whether Spy warns the players shortly before the time runs out.
+  bool get timeWarning => _timeWarning;
+
+  Future<void> setTimeWarning(bool value) async {
+    if (value == _timeWarning) return;
+    _timeWarning = value;
+    notifyListeners();
+    await _prefs?.setBool(_timeWarningKey, value);
   }
 
   /// The player's own Spy words, in the order they were added.

@@ -58,6 +58,9 @@ class SpyGameScreen extends StatefulWidget {
 }
 
 class _SpyGameScreenState extends State<SpyGameScreen> {
+  /// How long before the end the players are warned (if they want that).
+  static const _warnAtSeconds = 20;
+
   _Phase _phase = _Phase.loading;
   List<String>? _words;
   Object? _error;
@@ -141,6 +144,22 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
     strong ? HapticFeedback.heavyImpact() : HapticFeedback.selectionClick();
   }
 
+  /// The "time warning" setting is on and the round is long enough for it to
+  /// make sense.
+  bool get _warningEnabled =>
+      SettingsScope.read(context).timeWarning &&
+      widget.duration.inSeconds > _warnAtSeconds;
+
+  /// Less than [_warnAtSeconds] seconds left (but not yet out of time).
+  bool get _inWarning =>
+      _warningEnabled && _remaining > 0 && _remaining <= _warnAtSeconds;
+
+  /// A long, firm buzz so the players notice even without looking. Follows the
+  /// vibration setting; the on-screen change does not depend on it.
+  void _buzzWarning() {
+    if (SettingsScope.read(context).haptics) HapticFeedback.vibrate();
+  }
+
   void _showRole() {
     _haptic();
     setState(() => _revealed = true);
@@ -164,6 +183,11 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_paused || _remaining <= 0) return;
       setState(() => _remaining--);
+      if (_remaining == _warnAtSeconds && _warningEnabled) {
+        // The warning itself (amber dial, "Hurry up!") follows from the time
+        // left; here only the buzz, once.
+        _buzzWarning();
+      }
       if (_remaining == 0) {
         _ticker?.cancel();
         _haptic(strong: true);
@@ -292,8 +316,13 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
             child: _TimerDial(
               seconds: _remaining,
               total: widget.duration.inSeconds,
-              caption: timeUp ? s['spy_times_up'] : s['spy_time_left'],
+              caption: timeUp
+                  ? s['spy_times_up']
+                  : _inWarning
+                  ? s['spy_hurry']
+                  : s['spy_time_left'],
               highlight: timeUp,
+              warning: _inWarning,
             ),
           ),
         ),
@@ -549,6 +578,7 @@ class _TimerDial extends StatelessWidget {
     required this.total,
     required this.caption,
     required this.highlight,
+    this.warning = false,
   });
 
   final int seconds;
@@ -557,6 +587,9 @@ class _TimerDial extends StatelessWidget {
 
   /// Time is up.
   final bool highlight;
+
+  /// Time is nearly up: hurry.
+  final bool warning;
 
   static String format(int seconds) =>
       '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
@@ -576,7 +609,11 @@ class _TimerDial extends StatelessWidget {
               strokeCap: StrokeCap.round,
               backgroundColor: Colors.white.withValues(alpha: 0.10),
               valueColor: AlwaysStoppedAnimation(
-                highlight ? const Color(0xFFFF6A6A) : const Color(0xFFF06FB5),
+                highlight
+                    ? const Color(0xFFFF6A6A)
+                    : warning
+                    ? const Color(0xFFFFB347)
+                    : const Color(0xFFF06FB5),
               ),
             ),
           ),
@@ -600,8 +637,11 @@ class _TimerDial extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
+                    fontWeight: warning ? FontWeight.w700 : FontWeight.w400,
                     color: highlight
                         ? const Color(0xFFFF9E9E)
+                        : warning
+                        ? const Color(0xFFFFC46B)
                         : Colors.white.withValues(alpha: 0.7),
                   ),
                 ),

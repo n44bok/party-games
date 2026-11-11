@@ -19,7 +19,6 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Strings.of(context);
     final settings = SettingsScope.of(context);
-    final theme = Theme.of(context);
     final current = settings.locale?.languageCode;
 
     return Scaffold(
@@ -64,42 +63,81 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 28),
-              GlassCard(
-                padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
-                child: Row(
-                  children: [
-                    const Icon(Icons.vibration_rounded),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            s['vibration'],
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            s['vibration_desc'],
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Switch(
-                      value: settings.haptics,
-                      onChanged: settings.setHaptics,
-                      activeTrackColor: const Color(0xFFB45CF5),
-                      activeThumbColor: Colors.white,
-                    ),
-                  ],
-                ),
+              _SwitchCard(
+                icon: Icons.vibration_rounded,
+                title: s['vibration'],
+                description: s['vibration_desc'],
+                value: settings.haptics,
+                onChanged: settings.setHaptics,
+                switchKey: const Key('hapticsSwitch'),
+              ),
+              const SizedBox(height: 14),
+              _SwitchCard(
+                icon: Icons.hourglass_bottom_rounded,
+                title: s['time_warning'],
+                description: s['time_warning_desc'],
+                value: settings.timeWarning,
+                onChanged: settings.setTimeWarning,
+                switchKey: const Key('timeWarningSwitch'),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A card with an icon, a title, a short description and an on/off switch.
+class _SwitchCard extends StatelessWidget {
+  const _SwitchCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.onChanged,
+    required this.switchKey,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final Key switchKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GlassCard(
+      padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
+      child: Row(
+        children: [
+          Icon(icon),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            key: switchKey,
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: const Color(0xFFB45CF5),
+            activeThumbColor: Colors.white,
+          ),
+        ],
       ),
     );
   }
