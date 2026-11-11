@@ -103,10 +103,6 @@ class _PartyGamesAppState extends State<PartyGamesApp> {
           labelStyle: const TextStyle(color: Colors.white),
           shape: const StadiumBorder(),
         ),
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: const Color(0xFF1E1238),
-          indicatorColor: const Color(0xFFB45CF5).withValues(alpha: 0.35),
-        ),
       ),
       supportedLocales: [for (final c in Strings.supported) Locale(c)],
       localizationsDelegates: const [

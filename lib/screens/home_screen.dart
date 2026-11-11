@@ -12,8 +12,8 @@ import 'premium_screen.dart';
 import 'settings_screen.dart';
 import 'setup_screen.dart';
 
-/// Shell with the bottom navigation: Home / Favorites / Packs / Stats.
-class HomeScreen extends StatefulWidget {
+/// The home screen: the grid of games.
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key, this.scrollHint = false});
 
   /// Briefly scroll the games list on first show, so people notice it
@@ -21,57 +21,10 @@ class HomeScreen extends StatefulWidget {
   final bool scrollHint;
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _tab = 0;
-
-  @override
   Widget build(BuildContext context) {
-    final s = Strings.of(context);
     return Scaffold(
       body: GradientBackground(
-        child: SafeArea(
-          child: IndexedStack(
-            index: _tab,
-            children: [
-              _GamesTab(scrollHint: widget.scrollHint),
-              _ComingSoonTab(
-                icon: Icons.favorite_border,
-                title: s['favorites'],
-              ),
-              _ComingSoonTab(icon: Icons.layers_outlined, title: s['packs']),
-              _ComingSoonTab(icon: Icons.bar_chart_rounded, title: s['stats']),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home_rounded),
-            label: s['home'],
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.favorite_border),
-            selectedIcon: const Icon(Icons.favorite),
-            label: s['favorites'],
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.layers_outlined),
-            selectedIcon: const Icon(Icons.layers),
-            label: s['packs'],
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.bar_chart_outlined),
-            selectedIcon: const Icon(Icons.bar_chart_rounded),
-            label: s['stats'],
-          ),
-        ],
+        child: SafeArea(child: _GamesTab(scrollHint: scrollHint)),
       ),
     );
   }
@@ -434,30 +387,6 @@ class _ModeCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ComingSoonTab extends StatelessWidget {
-  const _ComingSoonTab({required this.icon, required this.title});
-
-  final IconData icon;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = Strings.of(context);
-    final theme = Theme.of(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 64, color: theme.colorScheme.primary),
-          const SizedBox(height: 12),
-          Text(title, style: theme.textTheme.headlineSmall),
-          Text(s['coming_soon']),
-        ],
       ),
     );
   }

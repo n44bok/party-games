@@ -290,17 +290,6 @@ void main() {
     }
   });
 
-  testWidgets('bottom navigation switches tabs', (tester) async {
-    phone(tester);
-    await tester.pumpWidget(app());
-    await tester.tap(find.text('Favorites'));
-    await settle(tester);
-    expect(find.text('Coming soon'), findsWidgets);
-    await tester.tap(find.text('Home'));
-    await settle(tester);
-    expect(find.text('Party'), findsOneWidget);
-  });
-
   for (final title in [
     'This or That',
     'Random Challenge',
