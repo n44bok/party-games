@@ -7,6 +7,8 @@ import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
 import 'package:party_games/models/game_mode.dart';
 import 'package:party_games/screens/game_screen.dart';
+import 'package:party_games/screens/home_screen.dart';
+import 'package:party_games/screens/setup_screen.dart';
 import 'package:party_games/screens/spy_game_screen.dart';
 import 'package:party_games/spy/spy_round.dart';
 import 'package:party_games/widgets/glass_pill.dart';
@@ -980,6 +982,36 @@ void main() {
       expect(find.text('0:00'), findsOneWidget);
       expect(find.text('Time is up! Vote for the spy.'), findsOneWidget);
       expect(find.text('Pause'), findsNothing);
+    });
+
+    testWidgets('Finish goes back to the home screen, not the setup', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        await tester.tap(
+          find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+      await tester.tap(find.text('Reveal the spy'));
+      await settle(tester);
+      expect(find.byType(SpyGameScreen), findsOneWidget);
+
+      await tester.tap(find.text('Finish'));
+      // Two routes are popped at once; let both transitions run out.
+      await tester.pumpAndSettle();
+
+      // Neither the game nor its setup screen is left on the stack.
+      expect(find.byType(SpyGameScreen), findsNothing);
+      expect(find.byType(SetupScreen), findsNothing);
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.text('Truth or Dare'), findsOneWidget);
     });
 
     testWidgets('two spies are both named in the result', (tester) async {

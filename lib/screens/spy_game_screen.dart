@@ -402,7 +402,10 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
         GlassButton(
           label: s['spy_finish'],
           icon: Icons.check_rounded,
-          onPressed: () => Navigator.of(context).maybePop(),
+          // Done with the game: all the way back to the home screen (not just
+          // to the setup screen).
+          onPressed: () =>
+              Navigator.of(context).popUntil((route) => route.isFirst),
         ),
       ],
     );
