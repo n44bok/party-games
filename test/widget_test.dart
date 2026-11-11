@@ -138,8 +138,9 @@ void main() {
     for (final label in ['All', 'Friends', 'Party', 'Funny']) {
       expect(chip(label), findsOneWidget);
     }
-    expect(find.byType(TextField), findsNWidgets(4)); // one name per player
-    await tester.tap(find.byTooltip('−'));
+    expect(find.text('2'), findsOneWidget); // two players by default
+    expect(find.byType(TextField), findsNWidgets(2)); // one name per player
+    await tester.tap(find.byTooltip('+'));
     await tester.pump();
     expect(find.text('3'), findsOneWidget);
     expect(find.byType(TextField), findsNWidgets(3));
@@ -162,7 +163,7 @@ void main() {
     await tester.tap(find.text('Most Likely To'));
     await settle(tester);
 
-    await tester.tap(find.byTooltip('−')); // 4 -> 3 players
+    await tester.tap(find.byTooltip('+')); // 2 -> 3 players
     await tester.pump();
     await tester.enterText(find.byType(TextField).at(0), '  Anna ');
     await tester.enterText(find.byType(TextField).at(1), 'Bohdan');
@@ -187,6 +188,11 @@ void main() {
     await tester.tap(find.text('Most Likely To'));
     await settle(tester);
 
+    await tester.tap(find.byTooltip('+'));
+    await tester.tap(find.byTooltip('+'));
+    await tester.pump();
+    expect(find.byType(TextField), findsNWidgets(4));
+
     await tester.enterText(find.byType(TextField).at(3), 'Last');
     await tester.tap(find.byTooltip('−'));
     await tester.pump();
@@ -197,6 +203,18 @@ void main() {
     await tester.pump();
     expect(find.byType(TextField), findsNWidgets(4));
     expect(find.text('Last'), findsNothing); // the new field is blank
+  });
+
+  testWidgets('there are never fewer than two players', (tester) async {
+    phone(tester);
+    await tester.pumpWidget(app());
+    await tester.tap(find.text('Most Likely To'));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('−'));
+    await tester.pump();
+    expect(find.text('2'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
   });
 
   testWidgets('truth or dare can change type', (tester) async {

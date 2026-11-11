@@ -20,7 +20,7 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  static const _defaultPlayers = 4;
+  static const _defaultPlayers = 2;
   static const _maxNameLength = 14;
 
   /// One controller per player; its length is the player count.
