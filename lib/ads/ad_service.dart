@@ -11,6 +11,15 @@ abstract class AdService {
   /// ad budget.
   void onGameStarted();
 
+  /// Starts loading a full-screen ad so it is ready when needed. Call
+  /// ahead of [showStartInterstitial] (e.g. when a setup screen opens).
+  void prepareInterstitial();
+
+  /// Shows a full-screen ad right now if one is ready. Never waits: if none
+  /// is ready, nothing is shown. For games that show their ad once, when
+  /// they start (rather than after a number of rounds).
+  void showStartInterstitial();
+
   /// Call when a round has been played. May show a full-screen ad; never
   /// blocks the game, and does nothing if no ad is ready.
   void onRoundFinished();
@@ -24,6 +33,12 @@ class NoAdService implements AdService {
 
   @override
   void onGameStarted() {}
+
+  @override
+  void prepareInterstitial() {}
+
+  @override
+  void showStartInterstitial() {}
 
   @override
   void onRoundFinished() {}
@@ -64,6 +79,12 @@ class AdScope extends InheritedWidget {
   const AdScope({super.key, required this.service, required super.child});
 
   final AdService service;
+
+  /// The service without subscribing to changes: for use in callbacks that
+  /// run outside of `build`.
+  static AdService read(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<AdScope>()?.service ??
+      const NoAdService();
 
   /// Falls back to no ads when there is no scope, so a missing one can never
   /// crash the UI.

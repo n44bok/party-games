@@ -56,4 +56,22 @@ void main() {
       expect(shapes.length, 1, reason: 'languages out of sync for $file');
     });
   }
+
+  test('spy locations: present, unique and in sync across languages', () {
+    final sizes = <int>{};
+    for (final lang in Strings.supported) {
+      final places = (jsonDecode(
+        File('assets/content/$lang/spy_locations.json').readAsStringSync(),
+      ) as List).cast<String>();
+      expect(places.length, greaterThanOrEqualTo(20));
+      expect(
+        places.toSet().length,
+        places.length,
+        reason: 'duplicates in $lang',
+      );
+      expect(places.every((p) => p.trim().isNotEmpty), isTrue);
+      sizes.add(places.length);
+    }
+    expect(sizes.length, 1, reason: 'languages out of sync for spy places');
+  });
 }

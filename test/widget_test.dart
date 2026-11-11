@@ -7,10 +7,21 @@ import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
 import 'package:party_games/models/game_mode.dart';
 import 'package:party_games/screens/game_screen.dart';
+import 'package:party_games/screens/spy_game_screen.dart';
+import 'package:party_games/spy/spy_round.dart';
+import 'package:party_games/widgets/glass_pill.dart';
+
+import 'dart:math' show Random;
+
 import 'package:party_games/widgets/category_chips.dart';
 
 /// In-memory content: no asset I/O, so tests are fast and deterministic.
 class FakeRepository extends ContentRepository {
+  static const places = ['Airport', 'Beach', 'School'];
+
+  @override
+  Future<List<String>> loadLocations(String lang) async => places;
+
   @override
   Future<List<Prompt>> load(GameMode mode, String lang) async => [
     for (final file in mode.files)
@@ -41,6 +52,14 @@ class RecordingRepository extends FakeRepository {
 class FakeAdService implements AdService {
   int games = 0;
   int rounds = 0;
+  int prepares = 0;
+  int startAds = 0;
+
+  @override
+  void prepareInterstitial() => prepares++;
+
+  @override
+  void showStartInterstitial() => startAds++;
 
   @override
   void onGameStarted() => games++;
@@ -85,6 +104,22 @@ Future<void> settle(WidgetTester tester) async {
 Finder inGame(String text) =>
     find.descendant(of: find.byType(GameScreen), matching: find.text(text));
 
+/// A window tall enough for the whole Spy setup page, so no scrolling (which
+/// can leave a button under the transparent app bar) is needed.
+void spyPhone(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1170, 3900);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+}
+
+/// Opens a game from the home grid. With seven cards the last ones are below
+/// the fold in a phone-sized window, so scroll to the card first.
+Future<void> openGame(WidgetTester tester, String title) async {
+  await tester.ensureVisible(find.text(title));
+  await tester.pump();
+  await tester.tap(find.text(title));
+}
+
 /// Scrolls the setup screen to "Start Game" (the name fields push it down)
 /// and taps it.
 Future<void> startGame(WidgetTester tester) async {
@@ -111,6 +146,7 @@ void main() {
     phone(tester);
     await tester.pumpWidget(app());
     for (final title in [
+      'Spy',
       'Truth or Dare',
       'Most Likely To',
       'Never Have I Ever',
@@ -142,7 +178,7 @@ void main() {
     testWidgets('$title starts with content', (tester) async {
       phone(tester);
       await tester.pumpWidget(app());
-      await tester.tap(find.text(title));
+      await openGame(tester, title);
       await settle(tester);
       await startGame(tester);
       await loaded(tester);
@@ -154,7 +190,7 @@ void main() {
   testWidgets('setup -> game shows player turns', (tester) async {
     phone(tester);
     await tester.pumpWidget(app());
-    await tester.tap(find.text('Would You Rather'));
+    await openGame(tester, 'Would You Rather');
     await settle(tester);
 
     // Setup screen: players stepper and categories.
@@ -189,7 +225,7 @@ void main() {
   testWidgets('entered names are shown in turn order', (tester) async {
     phone(tester);
     await tester.pumpWidget(app());
-    await tester.tap(find.text('Most Likely To'));
+    await openGame(tester, 'Most Likely To');
     await settle(tester);
 
     await tester.tap(find.byTooltip('+')); // 2 -> 3 players
@@ -214,7 +250,7 @@ void main() {
   testWidgets('removing a player drops its name field', (tester) async {
     phone(tester);
     await tester.pumpWidget(app());
-    await tester.tap(find.text('Most Likely To'));
+    await openGame(tester, 'Most Likely To');
     await settle(tester);
 
     await tester.tap(find.byTooltip('+'));
@@ -237,7 +273,7 @@ void main() {
   testWidgets('there are never fewer than two players', (tester) async {
     phone(tester);
     await tester.pumpWidget(app());
-    await tester.tap(find.text('Most Likely To'));
+    await openGame(tester, 'Most Likely To');
     await settle(tester);
 
     await tester.tap(find.byTooltip('−'));
@@ -249,7 +285,7 @@ void main() {
   testWidgets('truth or dare can change type', (tester) async {
     phone(tester);
     await tester.pumpWidget(app());
-    await tester.tap(find.text('Truth or Dare'));
+    await openGame(tester, 'Truth or Dare');
     await settle(tester);
     await startGame(tester);
     await loaded(tester);
@@ -265,7 +301,7 @@ void main() {
   testWidgets('load failure shows an error and can be retried', (tester) async {
     phone(tester);
     await tester.pumpWidget(PartyGamesApp(repository: FlakyRepository(1)));
-    await tester.tap(find.text('Truth or Dare'));
+    await openGame(tester, 'Truth or Dare');
     await settle(tester);
     await startGame(tester);
     await settle(tester);
@@ -284,10 +320,11 @@ void main() {
     await tester.pumpWidget(app());
 
     // One help button per game card.
-    expect(find.byTooltip('Rules'), findsNWidgets(6));
+    expect(find.byTooltip('Rules'), findsNWidgets(7));
 
-    // The first card is Truth or Dare; the help button must not open the game.
-    await tester.tap(find.byTooltip('Rules').first);
+    // The second card is Truth or Dare (Spy is first); the help button must
+    // not open the game.
+    await tester.tap(find.byTooltip('Rules').at(1));
     await settle(tester);
     expect(find.textContaining('Change Type'), findsOneWidget);
     expect(find.text('Start Game'), findsNothing);
@@ -367,7 +404,7 @@ void main() {
       await tester.pumpWidget(
         PartyGamesApp(repository: repository, settings: SettingsController()),
       );
-      await tester.tap(find.text('Truth or Dare'));
+      await openGame(tester, 'Truth or Dare');
       await settle(tester);
       await startGame(tester);
       await loaded(tester);
@@ -496,7 +533,7 @@ void main() {
       await tester.pumpWidget(
         PartyGamesApp(repository: FakeRepository(), ads: ads),
       );
-      await tester.tap(find.text('Truth or Dare'));
+      await openGame(tester, 'Truth or Dare');
       await settle(tester);
       await startGame(tester);
       await loaded(tester);
@@ -524,7 +561,7 @@ void main() {
       expect(ads.games, 0); // the home screen is not a game
 
       // First game.
-      await tester.tap(find.text('Truth or Dare'));
+      await openGame(tester, 'Truth or Dare');
       await settle(tester);
       await startGame(tester);
       await loaded(tester);
@@ -538,7 +575,7 @@ void main() {
       Navigator.of(tester.element(find.byType(GameScreen)))
           .popUntil((route) => route.isFirst);
       await settle(tester);
-      await tester.tap(find.text('Would You Rather'));
+      await openGame(tester, 'Would You Rather');
       await settle(tester);
       await startGame(tester);
       await loaded(tester);
@@ -624,11 +661,18 @@ void main() {
       expect(offset(tester), stopped); // no further automatic movement
     });
 
+    /// Tall enough for all seven cards.
+    void tallPhone(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1170, 3600);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+    }
+
     testWidgets('still plays if the list only becomes scrollable later', (
       tester,
     ) async {
       // Starts tall: everything fits, so there is nothing to hint at yet...
-      phone(tester);
+      tallPhone(tester);
       await tester.pumpWidget(
         PartyGamesApp(repository: FakeRepository(), scrollHint: true),
       );
@@ -647,12 +691,409 @@ void main() {
     });
 
     testWidgets('does nothing when every game already fits', (tester) async {
-      phone(tester); // tall enough for all six cards
+      tallPhone(tester);
       await tester.pumpWidget(
         PartyGamesApp(repository: FakeRepository(), scrollHint: true),
       );
       await advance(tester, const Duration(seconds: 5));
       expect(offset(tester), 0);
+    });
+  });
+
+  group('spy rules', () {
+    test('spies are a minority: 1 up to 4 players, 2 from 5', () {
+      expect(SpyRound.maxSpiesFor(3), 1);
+      expect(SpyRound.maxSpiesFor(4), 1);
+      expect(SpyRound.maxSpiesFor(5), 2);
+      expect(SpyRound.maxSpiesFor(6), 2);
+      expect(SpyRound.maxSpiesFor(12), 5);
+    });
+
+    test('a round has the requested number of distinct spies', () {
+      for (var seed = 0; seed < 50; seed++) {
+        final round = SpyRound.start(
+          players: 6,
+          spies: 2,
+          locations: FakeRepository.places,
+          random: Random(seed),
+        );
+        expect(round.spyIndexes.length, 2);
+        expect(round.spyIndexes.every((i) => i >= 0 && i < 6), isTrue);
+        expect(FakeRepository.places, contains(round.location));
+        expect(round.firstAsker, inInclusiveRange(0, 5));
+        expect(
+          [for (var i = 0; i < 6; i++) round.isSpy(i)].where((x) => x).length,
+          2,
+        );
+      }
+    });
+
+    test('the same seed gives the same round', () {
+      SpyRound make() => SpyRound.start(
+        players: 5,
+        spies: 1,
+        locations: FakeRepository.places,
+        random: Random(7),
+      );
+      final a = make();
+      final b = make();
+      expect(a.location, b.location);
+      expect(a.spyIndexes, b.spyIndexes);
+      expect(a.firstAsker, b.firstAsker);
+    });
+
+    test('everyone gets a turn at being the spy over many rounds', () {
+      final seen = <int>{};
+      final random = Random(1);
+      for (var i = 0; i < 200; i++) {
+        seen.addAll(
+          SpyRound.start(
+            players: 4,
+            spies: 1,
+            locations: FakeRepository.places,
+            random: random,
+          ).spyIndexes,
+        );
+      }
+      expect(seen, {0, 1, 2, 3});
+    });
+  });
+
+  group('spy game', () {
+    Future<void> openSpy(WidgetTester tester) async {
+      spyPhone(tester);
+      await tester.pumpWidget(app());
+      await openGame(tester, 'Spy');
+      await settle(tester);
+    }
+
+    Finder pills(String key, String label) => find.descendant(
+      of: find.byKey(Key(key)),
+      matching: find.widgetWithText(GlassPill, label),
+    );
+
+    /// The options are below the fold of a phone-sized window: scroll first.
+    Future<void> tapPill(WidgetTester tester, Finder pill) async {
+      await tester.ensureVisible(pill);
+      await tester.pump();
+      await tester.tap(pill);
+      await tester.pump();
+    }
+
+    bool enabled(WidgetTester tester, Finder pill) =>
+        tester.widget<GlassPill>(pill).enabled;
+    bool selected(WidgetTester tester, Finder pill) =>
+        tester.widget<GlassPill>(pill).selected;
+
+    String textOf(WidgetTester tester, String key) {
+      final keyed = find.byKey(Key(key));
+      final widget = tester.widget(keyed);
+      if (widget is Text) return widget.data!; // the key is on the Text itself
+      return tester
+          .widget<Text>(find.descendant(of: keyed, matching: find.byType(Text)))
+          .data!;
+    }
+
+    testWidgets('is the first game on the home screen', (tester) async {
+      expect(GameMode.values.first, GameMode.spy);
+
+      phone(tester);
+      await tester.pumpWidget(app());
+      // Top row, left column: above the second row and left of the next card.
+      final spy = tester.getTopLeft(find.text('Spy'));
+      expect(
+        spy.dx,
+        lessThan(tester.getTopLeft(find.text('Truth or Dare')).dx),
+      );
+      expect(
+        spy.dy,
+        lessThan(tester.getTopLeft(find.text('Most Likely To')).dy),
+      );
+    });
+
+    testWidgets('its rules are explained in the help popover', (tester) async {
+      phone(tester);
+      await tester.pumpWidget(app());
+      await tester.tap(find.byTooltip('Rules').first);
+      await settle(tester);
+      expect(find.textContaining('secret place'), findsOneWidget);
+    });
+
+    testWidgets('setup starts at three players, which is also the minimum', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      expect(find.byType(TextField), findsNWidgets(3));
+
+      await tester.tap(find.byTooltip('−')); // already at the minimum
+      await tester.pump();
+      expect(find.byType(TextField), findsNWidgets(3));
+
+      await tester.tap(find.byTooltip('+'));
+      await tester.pump();
+      expect(find.byType(TextField), findsNWidgets(4));
+    });
+
+    testWidgets('two spies need five players', (tester) async {
+      await openSpy(tester);
+      // Three players: one spy only.
+      expect(enabled(tester, pills('spyCountPills', '2')), isFalse);
+      expect(selected(tester, pills('spyCountPills', '1')), isTrue);
+
+      await tester.tap(find.byTooltip('+')); // four: still one spy
+      await tester.pump();
+      expect(enabled(tester, pills('spyCountPills', '2')), isFalse);
+
+      await tester.tap(find.byTooltip('+')); // five players
+      await tester.pump();
+      expect(enabled(tester, pills('spyCountPills', '2')), isTrue);
+      await tapPill(tester, pills('spyCountPills', '2'));
+      expect(selected(tester, pills('spyCountPills', '2')), isTrue);
+
+      // Back to four: two spies are no longer allowed, so it falls back to 1.
+      await tester.ensureVisible(find.byTooltip('−')); // we scrolled down
+      await tester.pump();
+      await tester.tap(find.byTooltip('−'));
+      await tester.pump();
+      expect(selected(tester, pills('spyCountPills', '1')), isTrue);
+      expect(enabled(tester, pills('spyCountPills', '2')), isFalse);
+    });
+
+    testWidgets('timer length can be chosen, 8 minutes by default', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      for (final label in ['5 min', '8 min', '10 min', '15 min']) {
+        expect(pills('timerPills', label), findsOneWidget);
+      }
+      expect(selected(tester, pills('timerPills', '8 min')), isTrue);
+      await tapPill(tester, pills('timerPills', '15 min'));
+      expect(selected(tester, pills('timerPills', '15 min')), isTrue);
+      expect(selected(tester, pills('timerPills', '8 min')), isFalse);
+    });
+
+    testWidgets('a full round: roles, discussion, result, play again', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      const names = ['Anna', 'Bohdan', 'Carla'];
+      for (var i = 0; i < names.length; i++) {
+        await tester.enterText(find.byType(TextField).at(i), names[i]);
+      }
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+
+      // Reveal: pass the phone around; each player sees their own role.
+      String? spyName;
+      final places = <String>{};
+      for (var i = 0; i < names.length; i++) {
+        expect(textOf(tester, 'spyProgress'), '${i + 1} / 3');
+        expect(textOf(tester, 'spyPassName'), names[i]);
+        // Nothing secret is on screen before the player asks for it.
+        expect(find.byKey(const Key('spyRole')), findsNothing);
+        expect(find.byKey(const Key('spyPlace')), findsNothing);
+
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        if (find.byKey(const Key('spyRole')).evaluate().isNotEmpty) {
+          expect(spyName, isNull, reason: 'only one spy');
+          spyName = names[i];
+          expect(find.byKey(const Key('spyPlace')), findsNothing);
+        } else {
+          places.add(textOf(tester, 'spyPlace'));
+        }
+        await tester.tap(
+          find.text(
+            i == names.length - 1 ? 'Hide and start' : 'Hide and pass on',
+          ),
+        );
+        await settle(tester);
+      }
+      expect(spyName, isNotNull);
+      expect(places.length, 1); // everyone but the spy saw the same place
+      expect(FakeRepository.places, contains(places.single));
+
+      // Discussion: the timer runs, can be paused and resumed.
+      expect(find.text('8:00'), findsOneWidget);
+      expect(find.textContaining('asks the first question'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text('7:57'), findsOneWidget);
+
+      await tester.tap(find.text('Pause'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 20));
+      expect(find.text('7:57'), findsOneWidget); // held while paused
+      await tester.tap(find.text('Resume'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('7:55'), findsOneWidget);
+
+      // The list of places can be opened and closed again.
+      await tester.tap(find.text('Places'));
+      await settle(tester);
+      for (final place in FakeRepository.places) {
+        expect(find.text(place), findsWidgets);
+      }
+      await tester.tapAt(const Offset(195, 60)); // outside the sheet
+      await settle(tester);
+
+      // Result: the real spy and the place.
+      await tester.tap(find.text('Reveal the spy'));
+      await settle(tester);
+      expect(textOf(tester, 'spyName'), spyName);
+      expect(find.text('The spy was'), findsOneWidget);
+      expect(find.byKey(const Key('spyResultPlace')), findsOneWidget);
+      expect(
+        (tester.widget<Text>(find.byKey(const Key('spyResultPlace')))).data,
+        places.single,
+      );
+
+      // Play again: a fresh round with the same players.
+      await tester.tap(find.text('Play again'));
+      await settle(tester);
+      expect(textOf(tester, 'spyProgress'), '1 / 3');
+      expect(textOf(tester, 'spyPassName'), 'Anna');
+    });
+
+    testWidgets('time runs out: the vote is called and pause goes away', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      await tapPill(tester, pills('timerPills', '5 min'));
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        await tester.tap(
+          find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+      expect(find.text('5:00'), findsOneWidget);
+      expect(find.text('Pause'), findsOneWidget);
+
+      await tester.pump(const Duration(minutes: 5));
+      await tester.pump();
+      expect(find.text('0:00'), findsOneWidget);
+      expect(find.text('Time is up! Vote for the spy.'), findsOneWidget);
+      expect(find.text('Pause'), findsNothing);
+    });
+
+    testWidgets('two spies are both named in the result', (tester) async {
+      await openSpy(tester);
+      await tester.tap(find.byTooltip('+'));
+      await tester.tap(find.byTooltip('+')); // 3 -> 5 players
+      await tester.pump();
+      await tapPill(tester, pills('spyCountPills', '2'));
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+
+      var spies = 0;
+      for (var i = 0; i < 5; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        if (find.byKey(const Key('spyRole')).evaluate().isNotEmpty) spies++;
+        await tester.tap(
+          find.text(i == 4 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+      expect(spies, 2);
+
+      await tester.tap(find.text('Reveal the spy'));
+      await settle(tester);
+      expect(find.text('The spies were'), findsOneWidget);
+      expect(find.byKey(const Key('spyName')), findsNWidgets(2));
+    });
+  });
+
+  group('spy ads', () {
+    Future<FakeAdService> openSpySetup(WidgetTester tester) async {
+      spyPhone(tester);
+      final ads = FakeAdService();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), ads: ads),
+      );
+      await openGame(tester, 'Spy');
+      await settle(tester);
+      return ads;
+    }
+
+    Future<void> playThroughRoles(WidgetTester tester, int players) async {
+      for (var i = 0; i < players; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        await tester.tap(
+          find.text(i == players - 1 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+    }
+
+    testWidgets('the ad is loaded in advance, when the setup opens', (
+      tester,
+    ) async {
+      final ads = await openSpySetup(tester);
+      expect(ads.prepares, 1);
+      expect(ads.startAds, 0); // nothing shown before the game starts
+    });
+
+    testWidgets('exactly one ad, when the game starts', (tester) async {
+      final ads = await openSpySetup(tester);
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      expect(ads.startAds, 1);
+
+      // Then no more, however the game goes on: roles, discussion, result,
+      // and further rounds with "Play again".
+      await playThroughRoles(tester, 3);
+      await tester.pump(const Duration(seconds: 30));
+      await tester.tap(find.text('Reveal the spy'));
+      await settle(tester);
+      await tester.tap(find.text('Play again'));
+      await settle(tester);
+      await playThroughRoles(tester, 3);
+      await tester.tap(find.text('Reveal the spy'));
+      await settle(tester);
+      expect(ads.startAds, 1);
+      expect(ads.rounds, 0); // Spy has no "rounds" that count towards an ad
+    });
+
+    testWidgets('leaving to the setup and starting again shows it again', (
+      tester,
+    ) async {
+      final ads = await openSpySetup(tester);
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      expect(ads.startAds, 1);
+
+      // Back to the setup screen (pop only the game), then start again.
+      Navigator.of(tester.element(find.byType(SpyGameScreen))).pop();
+      await settle(tester);
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      expect(ads.startAds, 2);
+    });
+
+    testWidgets('card games do not use the start ad', (tester) async {
+      phone(tester);
+      final ads = FakeAdService();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), ads: ads),
+      );
+      await openGame(tester, 'Truth or Dare');
+      await settle(tester);
+      await startGame(tester);
+      await loaded(tester);
+      expect(ads.prepares, 0);
+      expect(ads.startAds, 0);
     });
   });
 }

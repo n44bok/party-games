@@ -12,6 +12,14 @@ class ContentRepository {
 
   final AssetBundle _bundle;
 
+  /// Places for the Spy game, from `assets/content/{lang}/spy_locations.json`.
+  Future<List<String>> loadLocations(String lang) async {
+    final raw = await _bundle.loadString(
+      'assets/content/$lang/spy_locations.json',
+    );
+    return (jsonDecode(raw) as List<dynamic>).cast<String>();
+  }
+
   Future<List<Prompt>> load(GameMode mode, String lang) async {
     final result = <Prompt>[];
     for (final file in mode.files) {

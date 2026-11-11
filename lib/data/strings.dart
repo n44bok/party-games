@@ -28,6 +28,31 @@ class Strings {
       'most_likely': 'Most Likely To',
       'truth_or_dare': 'Truth or Dare',
       'empty': 'No content available',
+      'spy': 'Spy',
+      'spy_desc': 'Find the spy before they work out where you are',
+      'spy_rules': 'Everyone except the spy sees the same secret place. Take turns asking each other questions about it to find the spy, without giving the place away. The spy tries to work out where you are. When the time is up, vote for who you think the spy is.',
+      'spies': 'Spies',
+      'timer': 'Timer',
+      'minutes': '{n} min',
+      'spy_pass_to': 'Pass the phone to',
+      'spy_show_role': 'Show my role',
+      'spy_hide_next': 'Hide and pass on',
+      'spy_hide_start': 'Hide and start',
+      'spy_location_label': 'The place is',
+      'spy_you_are_spy': 'You are the spy!',
+      'spy_spy_hint': 'Work out where you are without giving yourself away.',
+      'spy_asks_first': '{name} asks the first question',
+      'spy_time_left': 'Time left',
+      'spy_times_up': 'Time is up! Vote for the spy.',
+      'spy_pause': 'Pause',
+      'spy_resume': 'Resume',
+      'spy_locations': 'Places',
+      'spy_reveal': 'Reveal the spy',
+      'spy_was_one': 'The spy was',
+      'spy_was_many': 'The spies were',
+      'spy_place_was': 'The place was',
+      'spy_play_again': 'Play again',
+      'spy_finish': 'Finish',
       'premium_title': 'Premium',
       'premium_subtitle': 'Play without limits',
       'benefit_no_ads': 'No ads, forever',
@@ -88,6 +113,31 @@ class Strings {
       'most_likely': 'Хто найімовірніше',
       'truth_or_dare': 'Правда чи дія',
       'empty': 'Немає контенту',
+      'spy': 'Шпигун',
+      'spy_desc': 'Знайдіть шпигуна, поки він не здогадався, де ви',
+      'spy_rules': 'Усі, крім шпигуна, бачать одне й те саме таємне місце. По черзі ставте одне одному запитання про нього, щоб знайти шпигуна, не видавши місця. Шпигун намагається зрозуміти, де ви. Коли час вийде, проголосуйте за того, кого вважаєте шпигуном.',
+      'spies': 'Шпигуни',
+      'timer': 'Таймер',
+      'minutes': '{n} хв',
+      'spy_pass_to': 'Передайте телефон',
+      'spy_show_role': 'Показати мою роль',
+      'spy_hide_next': 'Сховати й передати далі',
+      'spy_hide_start': 'Сховати й почати',
+      'spy_location_label': 'Місце',
+      'spy_you_are_spy': 'Ти шпигун!',
+      'spy_spy_hint': 'Зрозумій, де ви, не видавши себе.',
+      'spy_asks_first': 'Перше запитання ставить {name}',
+      'spy_time_left': 'Залишилось часу',
+      'spy_times_up': 'Час вийшов! Голосуйте за шпигуна.',
+      'spy_pause': 'Пауза',
+      'spy_resume': 'Продовжити',
+      'spy_locations': 'Місця',
+      'spy_reveal': 'Показати шпигуна',
+      'spy_was_one': 'Шпигун був',
+      'spy_was_many': 'Шпигунами були',
+      'spy_place_was': 'Місце було',
+      'spy_play_again': 'Грати ще',
+      'spy_finish': 'Завершити',
       'premium_title': 'Преміум',
       'premium_subtitle': 'Грай без обмежень',
       'benefit_no_ads': 'Без реклами назавжди',
@@ -142,6 +192,13 @@ class Strings {
   String operator [](String key) => _t[code]![key] ?? key;
 
   String modeName(GameMode m) => this[m.id];
+
+  /// Text for [key] with `{placeholders}` replaced from [args].
+  String format(String key, Map<String, Object> args) {
+    var text = this[key];
+    args.forEach((name, value) => text = text.replaceAll('{$name}', '$value'));
+    return text;
+  }
 
   /// Default name for player [n] (1-based), e.g. "Player 2".
   String defaultPlayerName(int n) => this['player_n'].replaceAll('{n}', '$n');

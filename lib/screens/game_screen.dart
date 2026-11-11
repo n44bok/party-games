@@ -9,6 +9,7 @@ import '../data/settings.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
 import '../widgets/glass.dart';
+import '../widgets/load_error.dart';
 import '../widgets/gradient_background.dart';
 import 'settings_screen.dart';
 
@@ -156,7 +157,7 @@ class _GameScreenState extends State<GameScreen> {
         dark: true,
         child: SafeArea(
           child: _error != null
-              ? _LoadError(
+              ? LoadError(
                   message: s['load_error'],
                   details: kDebugMode ? '$_error' : null,
                   retryLabel: s['retry'],
@@ -556,49 +557,4 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WavePainter oldDelegate) => false;
-}
-
-class _LoadError extends StatelessWidget {
-  const _LoadError({
-    required this.message,
-    required this.retryLabel,
-    required this.onRetry,
-    this.details,
-  });
-
-  final String message;
-  final String retryLabel;
-  final String? details;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline_rounded, size: 56),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            if (details != null) ...[
-              const SizedBox(height: 8),
-              Text(details!, textAlign: TextAlign.center),
-            ],
-            const SizedBox(height: 20),
-            GlassButton(
-              label: retryLabel,
-              icon: Icons.refresh_rounded,
-              onPressed: onRetry,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

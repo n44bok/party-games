@@ -17,6 +17,10 @@ class Prompt {
 }
 
 enum GameMode {
+  spy('spy', Icons.person_search_rounded, [
+    Color(0xFFC6E03A),
+    Color(0xFF55661A),
+  ]),
   truthOrDare('truth_or_dare', Icons.local_fire_department, [
     Color(0xFFE8548F),
     Color(0xFF8A2C6B),
@@ -50,8 +54,15 @@ enum GameMode {
 
   Color get color => colors.last;
 
+  /// Fewest players the game works with.
+  int get minPlayers => this == spy ? 3 : 2;
+
+  /// Players preselected on the setup screen.
+  int get defaultPlayers => this == spy ? 3 : 2;
+
   /// Accent that glows in from a corner of the home-screen card.
   Color get glow => switch (this) {
+    spy => const Color(0xFFC6E03A),
     truthOrDare => const Color(0xFFFF4F92),
     mostLikely => const Color(0xFF8A5CFF),
     neverHaveIEver => const Color(0xFFFF6A3D),
@@ -70,6 +81,7 @@ enum GameMode {
 
   /// Pastel version of [glow] for the card icon.
   Color get tint => switch (this) {
+    spy => const Color(0xFFEEF7A8),
     truthOrDare => const Color(0xFFFF9EC4),
     mostLikely => const Color(0xFFC9A8FF),
     neverHaveIEver => const Color(0xFFFFB59A),

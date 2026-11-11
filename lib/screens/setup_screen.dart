@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../ads/ad_service.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
 import '../widgets/category_chips.dart';
 import '../widgets/glass.dart';
 import '../widgets/glass_blob.dart';
+import '../widgets/glass_pill.dart';
 import '../widgets/gradient_background.dart';
+import '../spy/spy_round.dart';
 import 'game_screen.dart';
+import 'spy_game_screen.dart';
 
 class SetupScreen extends StatefulWidget {
   const SetupScreen({super.key, required this.mode});
 
   final GameMode mode;
 
-  static const minPlayers = 2;
   static const maxPlayers = 12;
 
   @override
@@ -21,14 +24,30 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  static const _defaultPlayers = 2;
   static const _maxNameLength = 14;
+  static const _timerMinutes = [5, 8, 10, 15];
 
   /// One controller per player; its length is the player count.
-  final _names = <TextEditingController>[
-    for (var i = 0; i < _defaultPlayers; i++) TextEditingController(),
+  late final _names = <TextEditingController>[
+    for (var i = 0; i < widget.mode.defaultPlayers; i++)
+      TextEditingController(),
   ];
   Category? _category;
+
+  // Spy options.
+  int _spies = 1;
+  int _minutes = 8;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mode == GameMode.spy) {
+      // Spy shows its one ad when the game starts, so have it loaded by then.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) AdScope.read(context).prepareInterstitial();
+      });
+    }
+  }
 
   int get _players => _names.length;
 
@@ -42,7 +61,7 @@ class _SetupScreenState extends State<SetupScreen> {
 
   void _changePlayers(int delta) => setState(() {
     final target = (_players + delta).clamp(
-      SetupScreen.minPlayers,
+      widget.mode.minPlayers,
       SetupScreen.maxPlayers,
     );
     while (_names.length < target) {
@@ -51,6 +70,8 @@ class _SetupScreenState extends State<SetupScreen> {
     while (_names.length > target) {
       _names.removeLast().dispose();
     }
+    // Fewer players may no longer allow as many spies.
+    _spies = _spies.clamp(1, SpyRound.maxSpiesFor(_players));
   });
 
   void _start() {
@@ -65,13 +86,72 @@ class _SetupScreenState extends State<SetupScreen> {
     ];
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GameScreen(
-          mode: widget.mode,
-          playerNames: names,
-          category: _category,
-        ),
+        builder: (_) => widget.mode == GameMode.spy
+            ? SpyGameScreen(
+                playerNames: names,
+                spies: _spies,
+                duration: Duration(minutes: _minutes),
+              )
+            : GameScreen(
+                mode: widget.mode,
+                playerNames: names,
+                category: _category,
+              ),
       ),
     );
+  }
+
+  /// The options below the player list: content categories for the card
+  /// games, spies and timer for Spy.
+  List<Widget> _modeOptions(Strings s, ThemeData theme) {
+    Widget header(IconData icon, String label) => Row(
+      children: [
+        Icon(icon),
+        const SizedBox(width: 12),
+        Text(label, style: theme.textTheme.titleMedium),
+      ],
+    );
+    final divider = Divider(
+      height: 32,
+      color: Colors.white.withValues(alpha: 0.14),
+    );
+
+    if (widget.mode != GameMode.spy) {
+      return [
+        divider,
+        header(Icons.layers_outlined, s['category']),
+        const SizedBox(height: 14),
+        CategoryChips(
+          selected: _category,
+          onSelected: (c) => setState(() => _category = c),
+        ),
+      ];
+    }
+
+    final maxSpies = SpyRound.maxSpiesFor(_players);
+    return [
+      divider,
+      header(Icons.person_search_outlined, s['spies']),
+      const SizedBox(height: 14),
+      OptionPills<int>(
+        key: const Key('spyCountPills'),
+        options: const [(1, '1'), (2, '2')],
+        selected: _spies,
+        isEnabled: (n) => n <= maxSpies,
+        onSelected: (n) => setState(() => _spies = n),
+      ),
+      const SizedBox(height: 24),
+      header(Icons.timer_outlined, s['timer']),
+      const SizedBox(height: 14),
+      OptionPills<int>(
+        key: const Key('timerPills'),
+        options: [
+          for (final m in _timerMinutes) (m, s.format('minutes', {'n': m})),
+        ],
+        selected: _minutes,
+        onSelected: (m) => setState(() => _minutes = m),
+      ),
+    ];
   }
 
   @override
@@ -154,8 +234,7 @@ class _SetupScreenState extends State<SetupScreen> {
                                       GlassIconButton(
                                         icon: Icons.remove,
                                         tooltip: '−',
-                                        onPressed:
-                                            _players > SetupScreen.minPlayers
+                                        onPressed: _players > mode.minPlayers
                                             ? () => _changePlayers(-1)
                                             : null,
                                       ),
@@ -191,26 +270,7 @@ class _SetupScreenState extends State<SetupScreen> {
                                       isLast: i == _players - 1,
                                     ),
                                   ],
-                                  Divider(
-                                    height: 32,
-                                    color: Colors.white.withValues(alpha: 0.14),
-                                  ),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.layers_outlined),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        s['category'],
-                                        style: theme.textTheme.titleMedium,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  CategoryChips(
-                                    selected: _category,
-                                    onSelected: (c) =>
-                                        setState(() => _category = c),
-                                  ),
+                                  ..._modeOptions(s, theme),
                                 ],
                               ),
                             ),

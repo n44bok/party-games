@@ -86,6 +86,26 @@ class GoogleAdService implements AdService {
   }
 
   @override
+  void prepareInterstitial() {
+    if (_settings.adsRemoved) return;
+    _loadInterstitial();
+  }
+
+  @override
+  void showStartInterstitial() {
+    if (!isSupported || _settings.adsRemoved) return;
+    final ad = _interstitial;
+    if (ad == null) {
+      // Not ready: never hold up the game for an ad, and do not show it
+      // later either (this one is for the start only).
+      _loadInterstitial();
+      return;
+    }
+    _interstitial = null;
+    _show(ad);
+  }
+
+  @override
   void onRoundFinished() {
     if (!isSupported || _settings.adsRemoved) return;
     if (!_pacer.onRound()) return;
@@ -99,6 +119,11 @@ class GoogleAdService implements AdService {
     }
     _interstitial = null;
     _pacer.markShown();
+    _show(ad);
+  }
+
+  /// Shows [ad] and loads the next one when it closes.
+  void _show(InterstitialAd ad) {
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
