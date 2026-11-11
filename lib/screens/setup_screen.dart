@@ -20,22 +20,53 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  int _players = 4;
+  static const _defaultPlayers = 4;
+  static const _maxNameLength = 14;
+
+  /// One controller per player; its length is the player count.
+  final _names = <TextEditingController>[
+    for (var i = 0; i < _defaultPlayers; i++) TextEditingController(),
+  ];
   Category? _category;
 
-  void _changePlayers(int delta) => setState(
-    () => _players = (_players + delta).clamp(
+  int get _players => _names.length;
+
+  @override
+  void dispose() {
+    for (final c in _names) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _changePlayers(int delta) => setState(() {
+    final target = (_players + delta).clamp(
       SetupScreen.minPlayers,
       SetupScreen.maxPlayers,
-    ),
-  );
+    );
+    while (_names.length < target) {
+      _names.add(TextEditingController());
+    }
+    while (_names.length > target) {
+      _names.removeLast().dispose();
+    }
+  });
 
   void _start() {
+    final s = Strings.of(context);
+    FocusScope.of(context).unfocus();
+    // An empty field falls back to "Player N".
+    final names = [
+      for (var i = 0; i < _players; i++)
+        _names[i].text.trim().isEmpty
+            ? s.defaultPlayerName(i + 1)
+            : _names[i].text.trim(),
+    ];
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => GameScreen(
           mode: widget.mode,
-          players: _players,
+          playerNames: names,
           category: _category,
         ),
       ),
@@ -57,100 +88,186 @@ class _SetupScreenState extends State<SetupScreen> {
         ),
       ),
       body: GradientBackground(
-        child: Stack(
-          children: [
-            const _PartyBackdrop(),
-            SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                child: Column(
-                  children: [
-                    _ModeBlob(mode: mode),
-                    const SizedBox(height: 14),
-                    _ModeTitle(title: s.modeName(mode)),
-                    const SizedBox(height: 6),
-                    Text(
-                      s['${mode.id}_desc'],
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.8),
+        // The illustration is part of the scrolling page, anchored under the
+        // button; the name fields can make the page taller than the screen.
+        child: SafeArea(
+          bottom: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final backdropHeight = MediaQuery.sizeOf(context).height * 0.36;
+              return SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: backdropHeight,
+                        child: const _PartyBackdrop(),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    GlassCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.group_outlined),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  s['players'],
-                                  style: theme.textTheme.titleMedium,
-                                ),
+                      Padding(
+                        // Leave room so the button sits above the picture.
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          0,
+                          20,
+                          backdropHeight * 0.6,
+                        ),
+                        child: Column(
+                          children: [
+                            _ModeBlob(mode: mode),
+                            const SizedBox(height: 14),
+                            _ModeTitle(title: s.modeName(mode)),
+                            const SizedBox(height: 6),
+                            Text(
+                              s['${mode.id}_desc'],
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.8),
                               ),
-                              GlassIconButton(
-                                icon: Icons.remove,
-                                tooltip: '−',
-                                onPressed: _players > SetupScreen.minPlayers
-                                    ? () => _changePlayers(-1)
-                                    : null,
+                            ),
+                            const SizedBox(height: 24),
+                            GlassCard(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.group_outlined),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          s['players'],
+                                          style: theme.textTheme.titleMedium,
+                                        ),
+                                      ),
+                                      GlassIconButton(
+                                        icon: Icons.remove,
+                                        tooltip: '−',
+                                        onPressed:
+                                            _players > SetupScreen.minPlayers
+                                            ? () => _changePlayers(-1)
+                                            : null,
+                                      ),
+                                      SizedBox(
+                                        width: 48,
+                                        child: Text(
+                                          '$_players',
+                                          key: const Key('playersCount'),
+                                          textAlign: TextAlign.center,
+                                          style: theme.textTheme.headlineSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                      GlassIconButton(
+                                        icon: Icons.add,
+                                        tooltip: '+',
+                                        onPressed:
+                                            _players < SetupScreen.maxPlayers
+                                            ? () => _changePlayers(1)
+                                            : null,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  for (var i = 0; i < _players; i++) ...[
+                                    if (i > 0) const SizedBox(height: 10),
+                                    _NameField(
+                                      controller: _names[i],
+                                      hint: s.defaultPlayerName(i + 1),
+                                      maxLength: _maxNameLength,
+                                      isLast: i == _players - 1,
+                                    ),
+                                  ],
+                                  Divider(
+                                    height: 32,
+                                    color: Colors.white.withValues(alpha: 0.14),
+                                  ),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.layers_outlined),
+                                      const SizedBox(width: 12),
+                                      Text(
+                                        s['category'],
+                                        style: theme.textTheme.titleMedium,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+                                  CategoryChips(
+                                    selected: _category,
+                                    onSelected: (c) =>
+                                        setState(() => _category = c),
+                                  ),
+                                ],
                               ),
-                              SizedBox(
-                                width: 48,
-                                child: Text(
-                                  '$_players',
-                                  key: const Key('playersCount'),
-                                  textAlign: TextAlign.center,
-                                  style: theme.textTheme.headlineSmall
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                              GlassIconButton(
-                                icon: Icons.add,
-                                tooltip: '+',
-                                onPressed: _players < SetupScreen.maxPlayers
-                                    ? () => _changePlayers(1)
-                                    : null,
-                              ),
-                            ],
-                          ),
-                          Divider(
-                            height: 32,
-                            color: Colors.white.withValues(alpha: 0.14),
-                          ),
-                          Row(
-                            children: [
-                              const Icon(Icons.layers_outlined),
-                              const SizedBox(width: 12),
-                              Text(
-                                s['category'],
-                                style: theme.textTheme.titleMedium,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          CategoryChips(
-                            selected: _category,
-                            onSelected: (c) => setState(() => _category = c),
-                          ),
-                        ],
+                            ),
+                            const SizedBox(height: 22),
+                            GradientButton(
+                              label: s['start'],
+                              icon: Icons.play_arrow_rounded,
+                              onPressed: _start,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 22),
-                    GradientButton(
-                      label: s['start'],
-                      icon: Icons.play_arrow_rounded,
-                      onPressed: _start,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// Single-line glass text field for one player's name.
+class _NameField extends StatelessWidget {
+  const _NameField({
+    required this.controller,
+    required this.hint,
+    required this.maxLength,
+    required this.isLast,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final int maxLength;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    OutlineInputBorder border(double alpha) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: Colors.white.withValues(alpha: alpha)),
+    );
+    return TextField(
+      controller: controller,
+      maxLength: maxLength,
+      maxLines: 1,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: isLast ? TextInputAction.done : TextInputAction.next,
+      style: const TextStyle(fontSize: 16),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+        counterText: '',
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.06),
+        prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        enabledBorder: border(0.16),
+        focusedBorder: border(0.6),
+        border: border(0.16),
       ),
     );
   }
@@ -251,28 +368,21 @@ class _PartyBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.sizeOf(context).height * 0.36;
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: height,
-      child: IgnorePointer(
-        child: ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (rect) => const LinearGradient(
-            colors: [Colors.transparent, Colors.black],
-            stops: [0.0, 0.45],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ).createShader(rect),
-          child: Image.asset(
-            'assets/images/party_toast.jpg',
-            fit: BoxFit.cover,
-            alignment: Alignment.bottomCenter,
-            // Decorative only; never break the screen over a missing image.
-            errorBuilder: (_, _, _) => const SizedBox.shrink(),
-          ),
+    return IgnorePointer(
+      child: ShaderMask(
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (rect) => const LinearGradient(
+          colors: [Colors.transparent, Colors.black],
+          stops: [0.0, 0.45],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(rect),
+        child: Image.asset(
+          'assets/images/party_toast.jpg',
+          fit: BoxFit.cover,
+          alignment: Alignment.bottomCenter,
+          // Decorative only; never break the screen over a missing image.
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
         ),
       ),
     );

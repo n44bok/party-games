@@ -48,7 +48,8 @@ class Strings {
       'category': 'Mode',
       'start': 'Start Game',
       'change_type': 'Change Type',
-      'player_of': 'Player {n} of {total}',
+      'player_n': 'Player {n}',
+      'name_hint': 'Name (optional)',
       'all': 'All',
       'friends': 'Friends',
       'party': 'Party',
@@ -85,7 +86,8 @@ class Strings {
       'category': 'Режим',
       'start': 'Почати гру',
       'change_type': 'Змінити тип',
-      'player_of': 'Гравець {n} з {total}',
+      'player_n': 'Гравець {n}',
+      'name_hint': 'Ім\'я (необов\'язково)',
       'all': 'Усі',
       'friends': 'Друзі',
       'party': 'Вечірка',
@@ -97,6 +99,6 @@ class Strings {
 
   String modeName(GameMode m) => this[m.id];
 
-  String playerOf(int n, int total) =>
-      this['player_of'].replaceAll('{n}', '$n').replaceAll('{total}', '$total');
+  /// Default name for player [n] (1-based), e.g. "Player 2".
+  String defaultPlayerName(int n) => this['player_n'].replaceAll('{n}', '$n');
 }

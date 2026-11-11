@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/main.dart';
 import 'package:party_games/models/game_mode.dart';
+import 'package:party_games/screens/game_screen.dart';
 import 'package:party_games/widgets/category_chips.dart';
 
 /// In-memory content: no asset I/O, so tests are fast and deterministic.
@@ -50,12 +51,25 @@ Future<void> settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 400)); // finish it
 }
 
+/// Text inside the game screen only: the setup screen stays underneath and its
+/// name fields show hints like "Player 1".
+Finder inGame(String text) =>
+    find.descendant(of: find.byType(GameScreen), matching: find.text(text));
+
+/// Scrolls the setup screen to "Start Game" (the name fields push it down)
+/// and taps it.
+Future<void> startGame(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('Start Game'));
+  await tester.pump();
+  await tester.tap(find.text('Start Game'));
+}
+
 /// Pumps until the game screen shows its first prompt. Asset reads finish in
 /// real time, which the fake test clock doesn't wait for, so poll for them.
 Future<void> loaded(WidgetTester tester) async {
   for (var i = 0; i < 100; i++) {
     await tester.pump(const Duration(milliseconds: 400));
-    if (find.textContaining('Player ').evaluate().isNotEmpty) return;
+    if (find.text('Next').evaluate().isNotEmpty) return;
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
@@ -101,9 +115,9 @@ void main() {
       await tester.pumpWidget(app());
       await tester.tap(find.text(title));
       await settle(tester);
-      await tester.tap(find.text('Start Game'));
+      await startGame(tester);
       await loaded(tester);
-      expect(find.text('Player 1 of 4'), findsOneWidget);
+      expect(inGame('Player 1'), findsOneWidget);
       expect(find.text('No content available'), findsNothing);
     });
   }
@@ -124,20 +138,65 @@ void main() {
     for (final label in ['All', 'Friends', 'Party', 'Funny']) {
       expect(chip(label), findsOneWidget);
     }
+    expect(find.byType(TextField), findsNWidgets(4)); // one name per player
     await tester.tap(find.byTooltip('−'));
     await tester.pump();
     expect(find.text('3'), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(3));
 
     await tester.tap(chip('Funny'));
-    await tester.tap(find.text('Start Game'));
+    await startGame(tester);
     await loaded(tester);
 
-    expect(find.text('Player 1 of 3'), findsOneWidget);
+    expect(inGame('Player 1'), findsOneWidget);
     expect(find.text('OR'), findsOneWidget);
 
     await tester.tap(find.text('Next'));
     await settle(tester);
-    expect(find.text('Player 2 of 3'), findsOneWidget);
+    expect(inGame('Player 2'), findsOneWidget);
+  });
+
+  testWidgets('entered names are shown in turn order', (tester) async {
+    phone(tester);
+    await tester.pumpWidget(app());
+    await tester.tap(find.text('Most Likely To'));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('−')); // 4 -> 3 players
+    await tester.pump();
+    await tester.enterText(find.byType(TextField).at(0), '  Anna ');
+    await tester.enterText(find.byType(TextField).at(1), 'Bohdan');
+    // The third field is left empty: falls back to "Player 3".
+    await startGame(tester);
+    await loaded(tester);
+
+    final order = <String>[];
+    for (var i = 0; i < 4; i++) {
+      for (final name in ['Anna', 'Bohdan', 'Player 3']) {
+        if (inGame(name).evaluate().isNotEmpty) order.add(name);
+      }
+      await tester.tap(find.text('Next'));
+      await settle(tester);
+    }
+    expect(order, ['Anna', 'Bohdan', 'Player 3', 'Anna']);
+  });
+
+  testWidgets('removing a player drops its name field', (tester) async {
+    phone(tester);
+    await tester.pumpWidget(app());
+    await tester.tap(find.text('Most Likely To'));
+    await settle(tester);
+
+    await tester.enterText(find.byType(TextField).at(3), 'Last');
+    await tester.tap(find.byTooltip('−'));
+    await tester.pump();
+    expect(find.text('Last'), findsNothing);
+    expect(find.byType(TextField), findsNWidgets(3));
+
+    await tester.tap(find.byTooltip('+'));
+    await tester.pump();
+    expect(find.byType(TextField), findsNWidgets(4));
+    expect(find.text('Last'), findsNothing); // the new field is blank
   });
 
   testWidgets('truth or dare can change type', (tester) async {
@@ -145,7 +204,7 @@ void main() {
     await tester.pumpWidget(app());
     await tester.tap(find.text('Truth or Dare'));
     await settle(tester);
-    await tester.tap(find.text('Start Game'));
+    await startGame(tester);
     await loaded(tester);
 
     final wasTruth = find.text('Truth').evaluate().isNotEmpty;
@@ -153,7 +212,7 @@ void main() {
     await settle(tester);
     expect(find.text(wasTruth ? 'Dare' : 'Truth'), findsOneWidget);
     // Changing type does not advance the turn.
-    expect(find.text('Player 1 of 4'), findsOneWidget);
+    expect(inGame('Player 1'), findsOneWidget);
   });
 
   testWidgets('load failure shows an error and can be retried', (tester) async {
@@ -161,7 +220,7 @@ void main() {
     await tester.pumpWidget(PartyGamesApp(repository: FlakyRepository(1)));
     await tester.tap(find.text('Truth or Dare'));
     await settle(tester);
-    await tester.tap(find.text('Start Game'));
+    await startGame(tester);
     await settle(tester);
     await settle(tester);
 
@@ -170,6 +229,6 @@ void main() {
 
     await tester.tap(find.text('Try again'));
     await loaded(tester);
-    expect(find.text('Player 1 of 4'), findsOneWidget);
+    expect(inGame('Player 1'), findsOneWidget);
   });
 }

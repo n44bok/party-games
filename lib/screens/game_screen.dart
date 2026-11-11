@@ -12,13 +12,15 @@ class GameScreen extends StatefulWidget {
   const GameScreen({
     super.key,
     required this.mode,
-    this.players = 4,
+    required this.playerNames,
     this.category,
     this.repository,
   });
 
   final GameMode mode;
-  final int players;
+
+  /// Display names in turn order; their count is the number of players.
+  final List<String> playerNames;
 
   /// `null` means all categories.
   final Category? category;
@@ -68,6 +70,10 @@ class _GameScreenState extends State<GameScreen> {
     setState(() => _error = null);
     _load();
   }
+
+  /// Whose turn it is; names repeat in order.
+  String get _currentPlayer =>
+      widget.playerNames[_turn % widget.playerNames.length];
 
   void _next() {
     setState(() {
@@ -167,19 +173,26 @@ class _GameScreenState extends State<GameScreen> {
                                 horizontal: 22,
                                 vertical: 11,
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.group_outlined, size: 20),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    s.playerOf(
-                                      _turn % widget.players + 1,
-                                      widget.players,
+                              child: ConstrainedBox(
+                                // Long names are cut with an ellipsis.
+                                constraints: const BoxConstraints(
+                                  maxWidth: 240,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.person_outline, size: 20),
+                                    const SizedBox(width: 10),
+                                    Flexible(
+                                      child: Text(
+                                        _currentPlayer,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
                                     ),
-                                    style: const TextStyle(fontSize: 15),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 18),
