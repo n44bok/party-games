@@ -48,7 +48,7 @@ class SpyGameScreen extends StatefulWidget {
   /// The theme of the secret words.
   final SpyCategory category;
 
-  /// Warn the players 20 seconds before the time runs out (a signal, an amber
+  /// Warn the players 30 seconds before the time runs out (a signal, an amber
   /// dial and, if they are switched on, vibration and sound).
   final bool timeWarning;
 
@@ -66,7 +66,7 @@ class SpyGameScreen extends StatefulWidget {
 
 class _SpyGameScreenState extends State<SpyGameScreen> {
   /// How long before the end the players are warned (if they want that).
-  static const _warnAtSeconds = 20;
+  static const _warnAtSeconds = 30;
 
   _Phase _phase = _Phase.loading;
   List<String>? _words;

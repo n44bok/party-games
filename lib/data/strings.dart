@@ -84,7 +84,7 @@ class Strings {
       'sound': 'Sound',
       'sound_desc': 'Beeps in Spy when time is nearly up and when it runs out',
       'time_warning': 'Time warning',
-      'time_warning_desc': 'A signal 20 seconds before the end',
+      'time_warning_desc': 'A signal 30 seconds before the end',
       'spy_hurry': 'Hurry up!',
       'rules': 'Rules',
       'truth_or_dare_rules': 'Players take turns. Each card is a Truth (a question to answer honestly) or a Dare (a task to perform). Not feeling it? Tap Change Type to get the other kind.',
@@ -188,7 +188,7 @@ class Strings {
       'sound_desc':
           'Сигнали у «Шпигуні», коли час майже вийшов і коли він вийшов',
       'time_warning': 'Попередження про час',
-      'time_warning_desc': 'Сигнал за 20 секунд до кінця часу',
+      'time_warning_desc': 'Сигнал за 30 секунд до кінця часу',
       'spy_hurry': 'Поспішайте!',
       'rules': 'Правила',
       'truth_or_dare_rules': 'Гравці ходять по черзі. Кожна картка це Правда (запитання, на яке треба відповісти чесно) або Дія (завдання, яке треба виконати). Не підходить? Натисни «Змінити тип», щоб отримати інший вид.',

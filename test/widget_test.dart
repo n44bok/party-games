@@ -1283,7 +1283,7 @@ void main() {
       await settle(tester);
 
       expect(find.text('Time warning'), findsOneWidget);
-      expect(find.text('A signal 20 seconds before the end'), findsOneWidget);
+      expect(find.text('A signal 30 seconds before the end'), findsOneWidget);
       final warningSwitch = find.byKey(const Key('timeWarningSwitch'));
       expect(tester.widget<Switch>(warningSwitch).value, isTrue);
 
@@ -1313,25 +1313,25 @@ void main() {
       );
     });
 
-    testWidgets('the players are told to hurry with 20 seconds to go', (
+    testWidgets('the players are told to hurry with 30 seconds to go', (
       tester,
     ) async {
       await toDiscussion(tester, SettingsController());
 
-      await tester.pump(const Duration(seconds: 279)); // 0:21 left
-      expect(find.text('0:21'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 269)); // 0:31 left
+      expect(find.text('0:31'), findsOneWidget);
       expect(find.text('Hurry up!'), findsNothing);
       expect(find.text('Time left'), findsOneWidget);
 
-      await tester.pump(const Duration(seconds: 1)); // 0:20 left
-      expect(find.text('0:20'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1)); // 0:30 left
+      expect(find.text('0:30'), findsOneWidget);
       expect(find.text('Hurry up!'), findsOneWidget);
       expect(find.text('Time left'), findsNothing);
 
       // It stays until the time is up, then the vote is called instead.
-      await tester.pump(const Duration(seconds: 10));
+      await tester.pump(const Duration(seconds: 15));
       expect(find.text('Hurry up!'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 10));
+      await tester.pump(const Duration(seconds: 15));
       await tester.pump();
       expect(find.text('0:00'), findsOneWidget);
       expect(find.text('Hurry up!'), findsNothing);
@@ -1347,7 +1347,7 @@ void main() {
       expect(find.text('Time left'), findsOneWidget);
     });
 
-    testWidgets('pausing inside the last 20 seconds keeps the warning', (
+    testWidgets('pausing inside the last 30 seconds keeps the warning', (
       tester,
     ) async {
       await toDiscussion(tester, SettingsController());
@@ -1483,20 +1483,20 @@ void main() {
       expect(settings.timeWarning, isTrue);
     });
 
-    testWidgets('beeps at 20 seconds, and the buzzer when time is out', (
+    testWidgets('beeps at 30 seconds, and the buzzer when time is out', (
       tester,
     ) async {
       final sounds = FakeSoundService();
       await toDiscussion(tester, SettingsController(), sounds: sounds);
 
-      await tester.pump(const Duration(seconds: 279)); // 0:21 left
+      await tester.pump(const Duration(seconds: 269)); // 0:31 left
       expect(sounds.warnings, 0);
-      await tester.pump(const Duration(seconds: 1)); // 0:20 left
+      await tester.pump(const Duration(seconds: 1)); // 0:30 left
       expect(sounds.warnings, 1);
       expect(sounds.timeUps, 0);
 
-      // Only once, however long the last 20 seconds last.
-      await tester.pump(const Duration(seconds: 19));
+      // Only once, however long the last 30 seconds last.
+      await tester.pump(const Duration(seconds: 29));
       expect(sounds.warnings, 1);
       expect(sounds.timeUps, 0);
 
@@ -1530,7 +1530,7 @@ void main() {
         SettingsController(timeWarning: false),
         sounds: sounds,
       );
-      await tester.pump(const Duration(seconds: 285)); // inside the last 20 s
+      await tester.pump(const Duration(seconds: 285)); // inside the last 30 s
       expect(sounds.warnings, 0);
       await tester.pump(const Duration(seconds: 15));
       expect(sounds.warnings, 0);
@@ -1540,7 +1540,7 @@ void main() {
     testWidgets('pausing holds back the sounds too', (tester) async {
       final sounds = FakeSoundService();
       await toDiscussion(tester, SettingsController(), sounds: sounds);
-      await tester.pump(const Duration(seconds: 270)); // 0:30 left
+      await tester.pump(const Duration(seconds: 260)); // 0:40 left
       await tester.tap(find.text('Pause'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 120));
