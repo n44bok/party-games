@@ -7,6 +7,7 @@ import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
 import 'package:party_games/models/game_mode.dart';
 import 'package:party_games/screens/game_screen.dart';
+import 'package:party_games/sound/sound_service.dart';
 import 'package:party_games/screens/home_screen.dart';
 import 'package:party_games/screens/setup_screen.dart';
 import 'package:party_games/screens/spy_game_screen.dart';
@@ -87,6 +88,18 @@ class FakeAdService implements AdService {
   void onRoundFinished() => rounds++;
 }
 
+/// Counts the sounds that would have been played.
+class FakeSoundService implements SoundService {
+  int warnings = 0;
+  int timeUps = 0;
+
+  @override
+  void playWarning() => warnings++;
+
+  @override
+  void playTimeUp() => timeUps++;
+}
+
 /// Fails the first `failures` loads, then behaves like [FakeRepository].
 class FlakyRepository extends FakeRepository {
   FlakyRepository(this.failures);
@@ -155,6 +168,43 @@ Future<void> loaded(WidgetTester tester) async {
     );
   }
   fail('content did not load');
+}
+
+/// Starts a Spy round with a 5 minute timer and plays through the role
+/// reveal, ending on the discussion screen.
+Future<void> toDiscussion(
+  WidgetTester tester,
+  SettingsController settings, {
+  SoundService sounds = const NoSoundService(),
+}) async {
+  spyPhone(tester);
+  await tester.pumpWidget(
+    PartyGamesApp(
+      repository: FakeRepository(),
+      settings: settings,
+      sounds: sounds,
+    ),
+  );
+  await openGame(tester, 'Spy');
+  await settle(tester);
+  final fiveMinutes = find.descendant(
+    of: find.byKey(const Key('timerPills')),
+    matching: find.text('5 min'),
+  );
+  await tester.ensureVisible(fiveMinutes);
+  await tester.pump();
+  await tester.tap(fiveMinutes);
+  await tester.pump();
+  await startGame(tester);
+  await settle(tester);
+  await settle(tester);
+  for (var i = 0; i < 3; i++) {
+    await tester.tap(find.text('Show my role'));
+    await settle(tester);
+    await tester.tap(find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'));
+    await settle(tester);
+  }
+  expect(find.text('5:00'), findsOneWidget);
 }
 
 void main() {
@@ -1362,40 +1412,6 @@ void main() {
   });
 
   group('time warning', () {
-    /// Starts a Spy round with a 5 minute timer and plays through the role
-    /// reveal, ending on the discussion screen.
-    Future<void> toDiscussion(
-      WidgetTester tester,
-      SettingsController settings,
-    ) async {
-      spyPhone(tester);
-      await tester.pumpWidget(
-        PartyGamesApp(repository: FakeRepository(), settings: settings),
-      );
-      await openGame(tester, 'Spy');
-      await settle(tester);
-      final fiveMinutes = find.descendant(
-        of: find.byKey(const Key('timerPills')),
-        matching: find.text('5 min'),
-      );
-      await tester.ensureVisible(fiveMinutes);
-      await tester.pump();
-      await tester.tap(fiveMinutes);
-      await tester.pump();
-      await startGame(tester);
-      await settle(tester);
-      await settle(tester);
-      for (var i = 0; i < 3; i++) {
-        await tester.tap(find.text('Show my role'));
-        await settle(tester);
-        await tester.tap(
-          find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
-        );
-        await settle(tester);
-      }
-      expect(find.text('5:00'), findsOneWidget);
-    }
-
     test('is on by default and is remembered', () async {
       SharedPreferences.setMockInitialValues({});
       final settings = await SettingsController.load();
@@ -1569,6 +1585,97 @@ void main() {
         find.byKey(const Key('singleWordField')),
       );
       expect(field.controller!.text, isEmpty);
+    });
+
+    test('the sound setting is on by default and is remembered', () async {
+      SharedPreferences.setMockInitialValues({});
+      final settings = await SettingsController.load();
+      expect(settings.sound, isTrue);
+      await settings.setSound(false);
+      expect((await SettingsController.load()).sound, isFalse);
+    });
+
+    testWidgets('sound can be switched in the settings screen', (tester) async {
+      phone(tester);
+      final settings = SettingsController();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), settings: settings),
+      );
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+      expect(find.text('Sound'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('soundSwitch')));
+      await settle(tester);
+      expect(settings.sound, isFalse);
+      // Independent of vibration and of the visual warning.
+      expect(settings.haptics, isTrue);
+      expect(settings.timeWarning, isTrue);
+    });
+
+    testWidgets('beeps at 20 seconds, and the buzzer when time is out', (
+      tester,
+    ) async {
+      final sounds = FakeSoundService();
+      await toDiscussion(tester, SettingsController(), sounds: sounds);
+
+      await tester.pump(const Duration(seconds: 279)); // 0:21 left
+      expect(sounds.warnings, 0);
+      await tester.pump(const Duration(seconds: 1)); // 0:20 left
+      expect(sounds.warnings, 1);
+      expect(sounds.timeUps, 0);
+
+      // Only once, however long the last 20 seconds last.
+      await tester.pump(const Duration(seconds: 19));
+      expect(sounds.warnings, 1);
+      expect(sounds.timeUps, 0);
+
+      await tester.pump(const Duration(seconds: 1)); // time is out
+      expect(sounds.warnings, 1);
+      expect(sounds.timeUps, 1);
+      await tester.pump(const Duration(seconds: 30));
+      expect(sounds.timeUps, 1); // the timer has stopped
+    });
+
+    testWidgets('no sound at all when sound is switched off', (tester) async {
+      final sounds = FakeSoundService();
+      await toDiscussion(
+        tester,
+        SettingsController(sound: false),
+        sounds: sounds,
+      );
+      await tester.pump(const Duration(seconds: 300));
+      expect(sounds.warnings, 0);
+      expect(sounds.timeUps, 0);
+      // The visual signals are separate and still there.
+      expect(find.text('Time is up! Vote for the spy.'), findsOneWidget);
+    });
+
+    testWidgets('with the warning off only the final buzzer sounds', (
+      tester,
+    ) async {
+      final sounds = FakeSoundService();
+      await toDiscussion(
+        tester,
+        SettingsController(timeWarning: false),
+        sounds: sounds,
+      );
+      await tester.pump(const Duration(seconds: 285)); // inside the last 20 s
+      expect(sounds.warnings, 0);
+      await tester.pump(const Duration(seconds: 15));
+      expect(sounds.warnings, 0);
+      expect(sounds.timeUps, 1);
+    });
+
+    testWidgets('pausing holds back the sounds too', (tester) async {
+      final sounds = FakeSoundService();
+      await toDiscussion(tester, SettingsController(), sounds: sounds);
+      await tester.pump(const Duration(seconds: 270)); // 0:30 left
+      await tester.tap(find.text('Pause'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 120));
+      expect(sounds.warnings, 0);
+      expect(sounds.timeUps, 0);
     });
   });
 }

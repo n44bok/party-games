@@ -7,6 +7,8 @@ import 'data/content_repository.dart';
 import 'data/content_scope.dart';
 import 'data/settings.dart';
 import 'data/strings.dart';
+import 'sound/audio_sound_service.dart';
+import 'sound/sound_service.dart';
 import 'screens/home_screen.dart';
 
 Future<void> main() async {
@@ -19,7 +21,14 @@ Future<void> main() async {
     const Duration(seconds: 3),
     onTimeout: () => debugPrint('Ads SDK is slow to start; continuing.'),
   );
-  runApp(PartyGamesApp(settings: settings, ads: ads, scrollHint: true));
+  runApp(
+    PartyGamesApp(
+      settings: settings,
+      ads: ads,
+      sounds: AudioSoundService(),
+      scrollHint: true,
+    ),
+  );
 }
 
 class PartyGamesApp extends StatefulWidget {
@@ -28,6 +37,7 @@ class PartyGamesApp extends StatefulWidget {
     this.repository,
     this.settings,
     this.ads = const NoAdService(),
+    this.sounds = const NoSoundService(),
     this.scrollHint = false,
   });
 
@@ -39,6 +49,9 @@ class PartyGamesApp extends StatefulWidget {
 
   /// Ads; none unless provided (so tests never touch the ads SDK).
   final AdService ads;
+
+  /// Sound signals; silent unless provided (so tests make no noise).
+  final SoundService sounds;
 
   /// Auto-scroll the home screen once to show that it scrolls. Off by
   /// default so tests are not disturbed by a moving grid.
@@ -103,11 +116,14 @@ class _PartyGamesAppState extends State<PartyGamesApp> {
       ],
       builder: (context, child) => SettingsScope(
         settings: _settings,
-        child: AdScope(
-          service: widget.ads,
-          child: ContentScope(
-            repository: widget.repository ?? ContentRepository(),
-            child: child!,
+        child: SoundScope(
+          service: widget.sounds,
+          child: AdScope(
+            service: widget.ads,
+            child: ContentScope(
+              repository: widget.repository ?? ContentRepository(),
+              child: child!,
+            ),
           ),
         ),
       ),

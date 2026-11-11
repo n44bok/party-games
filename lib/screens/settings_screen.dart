@@ -73,6 +73,15 @@ class SettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               _SwitchCard(
+                icon: Icons.volume_up_rounded,
+                title: s['sound'],
+                description: s['sound_desc'],
+                value: settings.sound,
+                onChanged: settings.setSound,
+                switchKey: const Key('soundSwitch'),
+              ),
+              const SizedBox(height: 14),
+              _SwitchCard(
                 icon: Icons.hourglass_bottom_rounded,
                 title: s['time_warning'],
                 description: s['time_warning_desc'],

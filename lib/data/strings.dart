@@ -88,6 +88,8 @@ class Strings {
       'language_system': 'System default',
       'vibration': 'Vibration',
       'vibration_desc': 'A light tap when the card changes',
+      'sound': 'Sound',
+      'sound_desc': 'Beeps in Spy when time is nearly up and when it runs out',
       'time_warning': 'Time warning',
       'time_warning_desc': 'In Spy, a signal 20 seconds before time runs out',
       'spy_hurry': 'Hurry up!',
@@ -196,6 +198,9 @@ class Strings {
       'language_system': 'Як у системі',
       'vibration': 'Вібрація',
       'vibration_desc': 'Легка вібрація при зміні картки',
+      'sound': 'Звук',
+      'sound_desc':
+          'Сигнали у «Шпигуні», коли час майже вийшов і коли він вийшов',
       'time_warning': 'Попередження про час',
       'time_warning_desc': 'У «Шпигуні» сигнал за 20 секунд до кінця часу',
       'spy_hurry': 'Поспішайте!',

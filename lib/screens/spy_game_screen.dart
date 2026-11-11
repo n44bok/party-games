@@ -11,6 +11,7 @@ import '../data/content_scope.dart';
 import '../data/settings.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
+import '../sound/sound_service.dart';
 import '../spy/spy_round.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
@@ -161,6 +162,11 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
     if (SettingsScope.read(context).haptics) HapticFeedback.vibrate();
   }
 
+  /// Plays a sound if the player has sound switched on.
+  void _sound(void Function(SoundService sounds) play) {
+    if (SettingsScope.read(context).sound) play(SoundScope.read(context));
+  }
+
   void _showRole() {
     _haptic();
     setState(() => _revealed = true);
@@ -186,12 +192,14 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
       setState(() => _remaining--);
       if (_remaining == _warnAtSeconds && _warningEnabled) {
         // The warning itself (amber dial, "Hurry up!") follows from the time
-        // left; here only the buzz, once.
+        // left; here only the buzz and the beeps, once.
         _buzzWarning();
+        _sound((sounds) => sounds.playWarning());
       }
       if (_remaining == 0) {
         _ticker?.cancel();
         _haptic(strong: true);
+        _sound((sounds) => sounds.playTimeUp());
       }
     });
   }

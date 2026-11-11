@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:party_games/data/strings.dart';
@@ -86,5 +87,55 @@ void main() {
       );
     }
     expect(shapes.length, 1, reason: 'languages out of sync for spy words');
+  });
+
+  group('sound files', () {
+    /// Reads the length and format straight from the WAV header.
+    ({int channels, int rate, int bits, double seconds}) wav(String name) {
+      final bytes = File('assets/sounds/$name.wav').readAsBytesSync();
+      final data = ByteData.sublistView(bytes);
+      String tag(int at) => String.fromCharCodes(bytes.sublist(at, at + 4));
+      expect(tag(0), 'RIFF', reason: '$name is not a RIFF file');
+      expect(tag(8), 'WAVE', reason: '$name is not a WAVE file');
+      expect(tag(12), 'fmt ');
+      final channels = data.getUint16(22, Endian.little);
+      final rate = data.getUint32(24, Endian.little);
+      final bits = data.getUint16(34, Endian.little);
+      expect(tag(36), 'data');
+      final size = data.getUint32(40, Endian.little);
+      return (
+        channels: channels,
+        rate: rate,
+        bits: bits,
+        seconds: size / (rate * channels * bits ~/ 8),
+      );
+    }
+
+    test('the warning is a short signal', () {
+      final w = wav('warning');
+      expect(w.bits, 16);
+      expect(w.seconds, inInclusiveRange(0.3, 2.0));
+    });
+
+    test('the time-up buzzer is a bit longer than the warning', () {
+      final warning = wav('warning');
+      final timeUp = wav('time_up');
+      expect(timeUp.bits, 16);
+      expect(timeUp.seconds, inInclusiveRange(0.5, 3.0));
+      expect(timeUp.seconds, greaterThan(warning.seconds));
+    });
+
+    test('neither file is silent', () {
+      for (final name in ['warning', 'time_up']) {
+        final bytes = File('assets/sounds/$name.wav').readAsBytesSync();
+        final samples = ByteData.sublistView(bytes, 44);
+        var peak = 0;
+        for (var i = 0; i + 1 < samples.lengthInBytes; i += 2) {
+          final v = samples.getInt16(i, Endian.little).abs();
+          if (v > peak) peak = v;
+        }
+        expect(peak, greaterThan(5000), reason: '$name is too quiet');
+      }
+    });
   });
 }
