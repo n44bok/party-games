@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/content_repository.dart';
+import '../data/content_scope.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
+import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
 
 class GameScreen extends StatefulWidget {
@@ -39,7 +41,7 @@ class _GameScreenState extends State<GameScreen> {
 
   Future<void> _load() async {
     final s = Strings.of(context);
-    final repo = widget.repository ?? ContentRepository();
+    final repo = widget.repository ?? ContentScope.of(context);
     final all = await repo.load(widget.mode, s.code);
     if (!mounted) return;
     setState(() {
@@ -86,10 +88,7 @@ class _GameScreenState extends State<GameScreen> {
     final deck = _deck;
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Text(s.modeName(mode)),
-        backgroundColor: Colors.transparent,
-      ),
+      appBar: AppBar(title: Text(s.modeName(mode))),
       body: GradientBackground(
         child: SafeArea(
           child: deck == null
@@ -100,13 +99,24 @@ class _GameScreenState extends State<GameScreen> {
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      Chip(
-                        avatar: const Icon(Icons.group_outlined, size: 18),
-                        label: Text(
-                          s.playerOf(
-                            _turn % widget.players + 1,
-                            widget.players,
-                          ),
+                      GlassCard(
+                        radius: 24,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.group_outlined, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              s.playerOf(
+                                _turn % widget.players + 1,
+                                widget.players,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -116,37 +126,22 @@ class _GameScreenState extends State<GameScreen> {
                           child: _PromptCard(
                             key: ValueKey(_cardKey),
                             prompt: deck[_index],
-                            accent: mode.color,
                             strings: s,
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: FilledButton.icon(
-                          onPressed: _next,
-                          icon: const Icon(Icons.refresh_rounded),
-                          label: Text(
-                            s['next'],
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                      GradientButton(
+                        label: s['next'],
+                        trailingIcon: Icons.arrow_forward_rounded,
+                        onPressed: _next,
                       ),
                       if (mode == GameMode.truthOrDare) ...[
                         const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 52,
-                          child: FilledButton.tonalIcon(
-                            onPressed: _changeType,
-                            icon: const Icon(Icons.shuffle_rounded),
-                            label: Text(s['change_type']),
-                          ),
+                        GlassButton(
+                          label: s['change_type'],
+                          icon: Icons.shuffle_rounded,
+                          onPressed: _changeType,
                         ),
                       ],
                     ],
@@ -159,73 +154,88 @@ class _GameScreenState extends State<GameScreen> {
 }
 
 class _PromptCard extends StatelessWidget {
-  const _PromptCard({
-    super.key,
-    required this.prompt,
-    required this.accent,
-    required this.strings,
-  });
+  const _PromptCard({super.key, required this.prompt, required this.strings});
 
   final Prompt prompt;
-  final Color accent;
   final Strings strings;
 
   @override
   Widget build(BuildContext context) {
-    const style = TextStyle(fontSize: 26, fontWeight: FontWeight.w700);
+    const style = TextStyle(
+      fontSize: 26,
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+    );
+    const accent = Color(0xFFF0A6F5);
     final kind = prompt.kind;
-    return Card(
-      elevation: 0,
-      color: Colors.white.withValues(alpha: 0.92),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-      child: SizedBox.expand(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (kind != null) ...[
-                    Chip(
-                      avatar: Icon(
-                        kind == 'truth'
-                            ? Icons.chat_bubble_outline
-                            : Icons.bolt_rounded,
-                        color: accent,
-                        size: 18,
-                      ),
-                      label: Text(
-                        strings[kind],
-                        style: TextStyle(
+    return SizedBox.expand(
+      child: GlassCard(
+        radius: 32,
+        padding: const EdgeInsets.all(28),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.08),
+            const Color(0xFFB45CF5).withValues(alpha: 0.28),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (kind != null) ...[
+                  GlassCard(
+                    radius: 22,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          kind == 'truth'
+                              ? Icons.chat_bubble_outline
+                              : Icons.bolt_rounded,
                           color: accent,
-                          fontWeight: FontWeight.w700,
+                          size: 20,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  Text(prompt.text, textAlign: TextAlign.center, style: style),
-                  if (prompt.optionB != null) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: Text(
-                        strings['or'],
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                        const SizedBox(width: 8),
+                        Text(
+                          strings[kind],
+                          style: const TextStyle(
+                            color: accent,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                    Text(
-                      prompt.optionB!,
-                      textAlign: TextAlign.center,
-                      style: style,
-                    ),
-                  ],
+                  ),
+                  const SizedBox(height: 20),
                 ],
-              ),
+                Text(prompt.text, textAlign: TextAlign.center, style: style),
+                if (prompt.optionB != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      strings['or'],
+                      style: const TextStyle(
+                        color: accent,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    prompt.optionB!,
+                    textAlign: TextAlign.center,
+                    style: style,
+                  ),
+                ],
+              ],
             ),
           ),
         ),

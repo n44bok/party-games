@@ -29,7 +29,7 @@ class ContentRepository {
               Prompt(
                 item as String,
                 category,
-                kind: mode == GameMode.truthOrDare ? file : null,
+                kind: (file == 'truth' || file == 'dare') ? file : null,
               ),
             );
           }

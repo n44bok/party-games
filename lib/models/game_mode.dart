@@ -29,9 +29,17 @@ enum GameMode {
     Color(0xFFFFB531),
     Color(0xFFF28A0C),
   ]),
-  wouldYouRather('would_you_rather', Icons.compare_arrows_rounded, [
+  thisOrThat('this_or_that', Icons.shuffle_rounded, [
+    Color(0xFF5BA8FF),
+    Color(0xFF3566E0),
+  ]),
+  wouldYouRather('would_you_rather', Icons.style_rounded, [
     Color(0xFF3FC98B),
     Color(0xFF1E9E63),
+  ]),
+  randomChallenge('random_challenge', Icons.casino_rounded, [
+    Color(0xFFB79CF7),
+    Color(0xFF8A6AE6),
   ]);
 
   const GameMode(this.id, this.icon, this.colors);
@@ -49,8 +57,19 @@ enum GameMode {
   );
 
   /// Content files that feed this mode.
-  List<String> get files =>
-      this == truthOrDare ? const ['truth', 'dare'] : [id];
+  List<String> get files => switch (this) {
+    truthOrDare => const ['truth', 'dare'],
+    // A mix of everything.
+    randomChallenge => const [
+      'truth',
+      'dare',
+      'most_likely',
+      'never_have_i_ever',
+      'this_or_that',
+      'would_you_rather',
+    ],
+    _ => [id],
+  };
 }
 
 /// Content category; every mode has prompts in each category.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Soft lavender-to-pink backdrop shared by all screens.
+/// Deep purple backdrop shared by all screens.
 class GradientBackground extends StatelessWidget {
   const GradientBackground({super.key, required this.child});
 
@@ -11,9 +11,9 @@ class GradientBackground extends StatelessWidget {
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFF1E7FF), Color(0xFFFBE9F5), Color(0xFFEDE7FF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          colors: [Color(0xFF140B2B), Color(0xFF26144A), Color(0xFF5A3A98)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
       ),
       child: SizedBox.expand(child: child),

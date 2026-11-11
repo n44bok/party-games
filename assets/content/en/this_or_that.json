@@ -1,0 +1,128 @@
+{
+ "friends": [
+  [
+   "Coffee",
+   "Tea"
+  ],
+  [
+   "Cats",
+   "Dogs"
+  ],
+  [
+   "Summer",
+   "Winter"
+  ],
+  [
+   "Mountains",
+   "Beach"
+  ],
+  [
+   "Early bird",
+   "Night owl"
+  ],
+  [
+   "Call",
+   "Text"
+  ],
+  [
+   "Books",
+   "Movies"
+  ],
+  [
+   "Pizza",
+   "Burger"
+  ],
+  [
+   "Sweet",
+   "Salty"
+  ],
+  [
+   "City",
+   "Countryside"
+  ]
+ ],
+ "party": [
+  [
+   "Dance floor",
+   "Sofa chat"
+  ],
+  [
+   "Karaoke",
+   "Board games"
+  ],
+  [
+   "House party",
+   "Club"
+  ],
+  [
+   "Cocktails",
+   "Beer"
+  ],
+  [
+   "Be the DJ",
+   "Be the dancer"
+  ],
+  [
+   "Plan everything",
+   "Go with the flow"
+  ],
+  [
+   "Arrive early",
+   "Arrive late"
+  ],
+  [
+   "Loud music",
+   "Quiet talk"
+  ],
+  [
+   "Pool party",
+   "Bonfire"
+  ],
+  [
+   "Costume party",
+   "Casual party"
+  ]
+ ],
+ "funny": [
+  [
+   "Pancakes",
+   "Waffles"
+  ],
+  [
+   "Socks with sandals",
+   "Barefoot in snow"
+  ],
+  [
+   "Talk like a pirate",
+   "Talk like a robot"
+  ],
+  [
+   "Be a cat",
+   "Be a dog"
+  ],
+  [
+   "Sing everything",
+   "Dance everything"
+  ],
+  [
+   "Chocolate",
+   "Cheese"
+  ],
+  [
+   "Giant spoon",
+   "Tiny fork"
+  ],
+  [
+   "Clown",
+   "Mime"
+  ],
+  [
+   "Hammock",
+   "Bed of pillows"
+  ],
+  [
+   "Ketchup on everything",
+   "Mayo on everything"
+  ]
+ ]
+}

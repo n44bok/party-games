@@ -10,6 +10,7 @@ void main() {
     'would_you_rather',
     'most_likely',
     'never_have_i_ever',
+    'this_or_that',
     'truth',
     'dare',
   ];
@@ -32,7 +33,7 @@ void main() {
         for (final entry in data.entries) {
           expect(entry.value, isNotEmpty, reason: '${entry.key} is empty');
           for (final item in entry.value as List) {
-            if (file == 'would_you_rather') {
+            if (file == 'would_you_rather' || file == 'this_or_that') {
               expect(item, isA<List>());
               expect((item as List).length, 2);
             } else {
