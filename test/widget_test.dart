@@ -19,10 +19,18 @@ import 'package:party_games/widgets/category_chips.dart';
 
 /// In-memory content: no asset I/O, so tests are fast and deterministic.
 class FakeRepository extends ContentRepository {
+  static const words = {
+    'places': ['Airport', 'Beach', 'School'],
+    'food': ['Pizza', 'Sushi', 'Soup'],
+    'animals': ['Cat', 'Dog', 'Fox'],
+    'jobs': ['Pilot', 'Chef', 'Doctor'],
+  };
+
+  /// The default category's words.
   static const places = ['Airport', 'Beach', 'School'];
 
   @override
-  Future<List<String>> loadLocations(String lang) async => places;
+  Future<Map<String, List<String>>> loadSpyWords(String lang) async => words;
 
   @override
   Future<List<Prompt>> load(GameMode mode, String lang) async => [
@@ -716,12 +724,12 @@ void main() {
         final round = SpyRound.start(
           players: 6,
           spies: 2,
-          locations: FakeRepository.places,
+          words: FakeRepository.places,
           random: Random(seed),
         );
         expect(round.spyIndexes.length, 2);
         expect(round.spyIndexes.every((i) => i >= 0 && i < 6), isTrue);
-        expect(FakeRepository.places, contains(round.location));
+        expect(FakeRepository.places, contains(round.word));
         expect(round.firstAsker, inInclusiveRange(0, 5));
         expect(
           [for (var i = 0; i < 6; i++) round.isSpy(i)].where((x) => x).length,
@@ -734,12 +742,12 @@ void main() {
       SpyRound make() => SpyRound.start(
         players: 5,
         spies: 1,
-        locations: FakeRepository.places,
+        words: FakeRepository.places,
         random: Random(7),
       );
       final a = make();
       final b = make();
-      expect(a.location, b.location);
+      expect(a.word, b.word);
       expect(a.spyIndexes, b.spyIndexes);
       expect(a.firstAsker, b.firstAsker);
     });
@@ -752,7 +760,7 @@ void main() {
           SpyRound.start(
             players: 4,
             spies: 1,
-            locations: FakeRepository.places,
+            words: FakeRepository.places,
             random: random,
           ).spyIndexes,
         );
@@ -818,7 +826,7 @@ void main() {
       await tester.pumpWidget(app());
       await tester.tap(find.byTooltip('Rules').first);
       await settle(tester);
-      expect(find.textContaining('secret place'), findsOneWidget);
+      expect(find.textContaining('secret word'), findsOneWidget);
     });
 
     testWidgets('setup starts at three players, which is also the minimum', (
@@ -861,6 +869,66 @@ void main() {
       expect(enabled(tester, pills('spyCountPills', '2')), isFalse);
     });
 
+    testWidgets('word categories: Places by default, four to choose from', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      for (final label in ['Places', 'Food', 'Animals', 'Jobs']) {
+        expect(pills('spyCategoryPills', label), findsOneWidget);
+      }
+      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
+
+      await tapPill(tester, pills('spyCategoryPills', 'Food'));
+      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
+      expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
+    });
+
+    for (final entry in {
+      'Places': 'places',
+      'Food': 'food',
+      'Animals': 'animals',
+      'Jobs': 'jobs',
+    }.entries) {
+      testWidgets('the "${entry.key}" category uses its own words', (
+        tester,
+      ) async {
+        await openSpy(tester);
+        await tapPill(tester, pills('spyCategoryPills', entry.key));
+        await startGame(tester);
+        await settle(tester);
+        await settle(tester);
+
+        final expected = FakeRepository.words[entry.value]!;
+        final seen = <String>{};
+        for (var i = 0; i < 3; i++) {
+          await tester.tap(find.text('Show my role'));
+          await settle(tester);
+          if (find.byKey(const Key('spyWord')).evaluate().isNotEmpty) {
+            seen.add(textOf(tester, 'spyWord'));
+          }
+          await tester.tap(
+            find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
+          );
+          await settle(tester);
+        }
+        expect(seen.length, 1);
+        expect(expected, contains(seen.single));
+
+        // The word list shows this category's words, and only them.
+        await tester.tap(find.text('Words'));
+        await settle(tester);
+        for (final word in expected) {
+          expect(find.text(word), findsWidgets);
+        }
+        for (final other in FakeRepository.words.entries) {
+          if (other.key == entry.value) continue;
+          for (final word in other.value) {
+            expect(find.text(word), findsNothing);
+          }
+        }
+      });
+    }
+
     testWidgets('timer length can be chosen, 8 minutes by default', (
       tester,
     ) async {
@@ -888,22 +956,22 @@ void main() {
 
       // Reveal: pass the phone around; each player sees their own role.
       String? spyName;
-      final places = <String>{};
+      final words = <String>{};
       for (var i = 0; i < names.length; i++) {
         expect(textOf(tester, 'spyProgress'), '${i + 1} / 3');
         expect(textOf(tester, 'spyPassName'), names[i]);
         // Nothing secret is on screen before the player asks for it.
         expect(find.byKey(const Key('spyRole')), findsNothing);
-        expect(find.byKey(const Key('spyPlace')), findsNothing);
+        expect(find.byKey(const Key('spyWord')), findsNothing);
 
         await tester.tap(find.text('Show my role'));
         await settle(tester);
         if (find.byKey(const Key('spyRole')).evaluate().isNotEmpty) {
           expect(spyName, isNull, reason: 'only one spy');
           spyName = names[i];
-          expect(find.byKey(const Key('spyPlace')), findsNothing);
+          expect(find.byKey(const Key('spyWord')), findsNothing);
         } else {
-          places.add(textOf(tester, 'spyPlace'));
+          words.add(textOf(tester, 'spyWord'));
         }
         await tester.tap(
           find.text(
@@ -913,8 +981,8 @@ void main() {
         await settle(tester);
       }
       expect(spyName, isNotNull);
-      expect(places.length, 1); // everyone but the spy saw the same place
-      expect(FakeRepository.places, contains(places.single));
+      expect(words.length, 1); // everyone but the spy saw the same word
+      expect(FakeRepository.places, contains(words.single));
 
       // Discussion: the timer runs, can be paused and resumed.
       expect(find.text('8:00'), findsOneWidget);
@@ -932,7 +1000,7 @@ void main() {
       expect(find.text('7:55'), findsOneWidget);
 
       // The list of places can be opened and closed again.
-      await tester.tap(find.text('Places'));
+      await tester.tap(find.text('Words'));
       await settle(tester);
       for (final place in FakeRepository.places) {
         expect(find.text(place), findsWidgets);
@@ -945,10 +1013,10 @@ void main() {
       await settle(tester);
       expect(textOf(tester, 'spyName'), spyName);
       expect(find.text('The spy was'), findsOneWidget);
-      expect(find.byKey(const Key('spyResultPlace')), findsOneWidget);
+      expect(find.byKey(const Key('spyResultWord')), findsOneWidget);
       expect(
-        (tester.widget<Text>(find.byKey(const Key('spyResultPlace')))).data,
-        places.single,
+        (tester.widget<Text>(find.byKey(const Key('spyResultWord')))).data,
+        words.single,
       );
 
       // Play again: a fresh round with the same players.

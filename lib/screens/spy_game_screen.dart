@@ -21,15 +21,16 @@ enum _Phase { loading, reveal, discussion, result }
 /// The whole Spy game on one screen.
 ///
 /// 1. **Reveal:** the phone is passed around; each player taps to see their
-///    secret role (the place, or "you are the spy") and hides it again.
+///    secret role (the word, or "you are the spy") and hides it again.
 /// 2. **Discussion:** a countdown while everyone asks questions.
-/// 3. **Result:** who the spy was and what the place was; play again.
+/// 3. **Result:** who the spy was and what the word was; play again.
 class SpyGameScreen extends StatefulWidget {
   const SpyGameScreen({
     super.key,
     required this.playerNames,
     required this.spies,
     required this.duration,
+    this.category = SpyCategory.places,
     this.repository,
     this.random,
   });
@@ -40,6 +41,9 @@ class SpyGameScreen extends StatefulWidget {
 
   /// How long the discussion lasts.
   final Duration duration;
+
+  /// The theme of the secret words.
+  final SpyCategory category;
   final ContentRepository? repository;
 
   /// Injectable for tests.
@@ -51,7 +55,7 @@ class SpyGameScreen extends StatefulWidget {
 
 class _SpyGameScreenState extends State<SpyGameScreen> {
   _Phase _phase = _Phase.loading;
-  List<String>? _locations;
+  List<String>? _words;
   Object? _error;
   bool _loadStarted = false;
 
@@ -63,7 +67,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
   int _remaining = 0;
   bool _paused = false;
 
-  /// Places the user has crossed off in the list; reset each round.
+  /// Words the user has crossed off in the list; reset each round.
   final _crossedOut = <String>{};
 
   int get _players => widget.playerNames.length;
@@ -87,12 +91,16 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
     final s = Strings.of(context);
     final repo = widget.repository ?? ContentScope.of(context);
     try {
-      final places = await repo.loadLocations(s.code);
+      final byCategory = await repo.loadSpyWords(s.code);
+      final words = byCategory[widget.category.id];
+      if (words == null || words.isEmpty) {
+        throw StateError('No Spy words for ${widget.category.id}');
+      }
       if (!mounted) return;
-      _locations = places;
+      _words = words;
       _newRound();
     } catch (e, st) {
-      debugPrint('Failed to load the Spy places (${s.code}): $e\n$st');
+      debugPrint('Failed to load the Spy words (${s.code}): $e\n$st');
       if (mounted) setState(() => _error = e);
     }
   }
@@ -108,7 +116,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
       _round = SpyRound.start(
         players: _players,
         spies: widget.spies,
-        locations: _locations!,
+        words: _words!,
         random: widget.random,
       );
       _turn = 0;
@@ -230,7 +238,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
                 ? _RoleCard(
                     key: ValueKey('role$_turn'),
                     isSpy: round.isSpy(_turn),
-                    location: round.location,
+                    location: round.word,
                     strings: s,
                   )
                 : _PassCard(
@@ -315,7 +323,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _PlacesSheet(
         title: s['spy_locations'],
-        places: _locations!,
+        places: _words!,
         crossedOut: _crossedOut,
       ),
     );
@@ -376,8 +384,8 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          round.location,
-                          key: const Key('spyResultPlace'),
+                          round.word,
+                          key: const Key('spyResultWord'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 30,
@@ -455,7 +463,7 @@ class _PassCard extends StatelessWidget {
   }
 }
 
-/// A player's secret: the place, or the news that they are the spy.
+/// A player's secret: the word, or the news that they are the spy.
 class _RoleCard extends StatelessWidget {
   const _RoleCard({
     super.key,
@@ -538,7 +546,7 @@ class _RoleCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     location,
-                    key: const Key('spyPlace'),
+                    key: const Key('spyWord'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 36,
@@ -624,7 +632,7 @@ class _TimerDial extends StatelessWidget {
   }
 }
 
-/// Bottom sheet with every possible place; tapping crosses one off.
+/// Bottom sheet with every possible word; tapping crosses one off.
 class _PlacesSheet extends StatefulWidget {
   const _PlacesSheet({
     required this.title,

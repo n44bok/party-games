@@ -1,31 +1,31 @@
 import 'dart:math';
 
-/// One round of Spy: who is the spy and where is everyone.
+/// One round of Spy: who is the spy and what is the secret word.
 ///
 /// Pure logic with an injectable [Random], so it can be tested.
 class SpyRound {
   SpyRound._({
-    required this.location,
+    required this.word,
     required this.spyIndexes,
     required this.firstAsker,
   });
 
-  /// Starts a round: picks the place, the spies and who asks first.
+  /// Starts a round: picks the secret word, the spies and who asks first.
   ///
   /// [players] is the number of players and [spies] how many are spies. The
   /// spies must be a minority, otherwise the game is not worth playing.
   factory SpyRound.start({
     required int players,
     required int spies,
-    required List<String> locations,
+    required List<String> words,
     Random? random,
   }) {
-    assert(locations.isNotEmpty, 'need at least one location');
+    assert(words.isNotEmpty, 'need at least one word');
     assert(spies >= 1 && spies <= maxSpiesFor(players));
     final rng = random ?? Random();
     final indexes = List<int>.generate(players, (i) => i)..shuffle(rng);
     return SpyRound._(
-      location: locations[rng.nextInt(locations.length)],
+      word: words[rng.nextInt(words.length)],
       spyIndexes: indexes.take(spies).toSet(),
       firstAsker: rng.nextInt(players),
     );
@@ -35,8 +35,8 @@ class SpyRound {
   /// Two spies need at least five players.
   static int maxSpiesFor(int players) => max(1, (players - 1) ~/ 2);
 
-  /// The secret place everyone but the spies knows.
-  final String location;
+  /// The secret word (a place, a food, ...) everyone but the spies knows.
+  final String word;
 
   /// Positions (in turn order) of the spies.
   final Set<int> spyIndexes;
@@ -45,4 +45,19 @@ class SpyRound {
   final int firstAsker;
 
   bool isSpy(int player) => spyIndexes.contains(player);
+}
+
+/// The theme of the secret words. Its [id] is the key in `spy_words.json`.
+enum SpyCategory {
+  places('places'),
+  food('food'),
+  animals('animals'),
+  jobs('jobs');
+
+  const SpyCategory(this.id);
+
+  final String id;
+
+  /// Strings key of the category's name.
+  String get labelKey => 'spy_cat_$id';
 }

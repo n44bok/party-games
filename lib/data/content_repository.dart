@@ -12,12 +12,15 @@ class ContentRepository {
 
   final AssetBundle _bundle;
 
-  /// Places for the Spy game, from `assets/content/{lang}/spy_locations.json`.
-  Future<List<String>> loadLocations(String lang) async {
-    final raw = await _bundle.loadString(
-      'assets/content/$lang/spy_locations.json',
-    );
-    return (jsonDecode(raw) as List<dynamic>).cast<String>();
+  /// Secret words for the Spy game, by category id (`places`, `food`, ...),
+  /// from `assets/content/{lang}/spy_words.json`.
+  Future<Map<String, List<String>>> loadSpyWords(String lang) async {
+    final raw = await _bundle.loadString('assets/content/$lang/spy_words.json');
+    final byCategory = jsonDecode(raw) as Map<String, dynamic>;
+    return {
+      for (final entry in byCategory.entries)
+        entry.key: (entry.value as List<dynamic>).cast<String>(),
+    };
   }
 
   Future<List<Prompt>> load(GameMode mode, String lang) async {

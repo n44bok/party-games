@@ -35,6 +35,7 @@ class _SetupScreenState extends State<SetupScreen> {
   Category? _category;
 
   // Spy options.
+  SpyCategory _spyCategory = SpyCategory.places;
   int _spies = 1;
   int _minutes = 8;
 
@@ -91,6 +92,7 @@ class _SetupScreenState extends State<SetupScreen> {
                 playerNames: names,
                 spies: _spies,
                 duration: Duration(minutes: _minutes),
+                category: _spyCategory,
               )
             : GameScreen(
                 mode: widget.mode,
@@ -131,6 +133,15 @@ class _SetupScreenState extends State<SetupScreen> {
     final maxSpies = SpyRound.maxSpiesFor(_players);
     return [
       divider,
+      header(Icons.category_outlined, s['spy_words']),
+      const SizedBox(height: 14),
+      OptionPills<SpyCategory>(
+        key: const Key('spyCategoryPills'),
+        options: [for (final c in SpyCategory.values) (c, s[c.labelKey])],
+        selected: _spyCategory,
+        onSelected: (c) => setState(() => _spyCategory = c),
+      ),
+      const SizedBox(height: 24),
       header(Icons.person_search_outlined, s['spies']),
       const SizedBox(height: 14),
       OptionPills<int>(

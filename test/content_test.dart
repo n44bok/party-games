@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:party_games/data/strings.dart';
 import 'package:party_games/models/game_mode.dart';
+import 'package:party_games/spy/spy_round.dart';
 
 void main() {
   const files = [
@@ -57,21 +58,33 @@ void main() {
     });
   }
 
-  test('spy locations: present, unique and in sync across languages', () {
-    final sizes = <int>{};
+  test('spy words: every category present, unique and in sync', () {
+    final shapes = <String>{};
     for (final lang in Strings.supported) {
-      final places = (jsonDecode(
-        File('assets/content/$lang/spy_locations.json').readAsStringSync(),
-      ) as List).cast<String>();
-      expect(places.length, greaterThanOrEqualTo(20));
+      final byCategory = jsonDecode(
+        File('assets/content/$lang/spy_words.json').readAsStringSync(),
+      ) as Map<String, dynamic>;
       expect(
-        places.toSet().length,
-        places.length,
-        reason: 'duplicates in $lang',
+        byCategory.keys.toSet(),
+        SpyCategory.values.map((c) => c.id).toSet(),
+        reason: 'categories of $lang',
       );
-      expect(places.every((p) => p.trim().isNotEmpty), isTrue);
-      sizes.add(places.length);
+      for (final entry in byCategory.entries) {
+        final words = (entry.value as List).cast<String>();
+        expect(words.length, greaterThanOrEqualTo(20), reason: entry.key);
+        expect(
+          words.toSet().length,
+          words.length,
+          reason: 'duplicates in $lang/${entry.key}',
+        );
+        expect(words.every((w) => w.trim().isNotEmpty), isTrue);
+      }
+      shapes.add(
+        byCategory.entries
+            .map((e) => '${e.key}:${(e.value as List).length}')
+            .join(','),
+      );
     }
-    expect(sizes.length, 1, reason: 'languages out of sync for spy places');
+    expect(shapes.length, 1, reason: 'languages out of sync for spy words');
   });
 }
