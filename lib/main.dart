@@ -7,6 +7,8 @@ import 'data/content_repository.dart';
 import 'data/content_scope.dart';
 import 'data/settings.dart';
 import 'data/strings.dart';
+import 'reverse/record_voice_service.dart';
+import 'reverse/voice_service.dart';
 import 'sound/audio_sound_service.dart';
 import 'sound/sound_service.dart';
 import 'screens/home_screen.dart';
@@ -26,6 +28,7 @@ Future<void> main() async {
       settings: settings,
       ads: ads,
       sounds: AudioSoundService(),
+      voice: RecordVoiceService(),
       scrollHint: true,
     ),
   );
@@ -38,6 +41,7 @@ class PartyGamesApp extends StatefulWidget {
     this.settings,
     this.ads = const NoAdService(),
     this.sounds = const NoSoundService(),
+    this.voice = const NoVoiceService(),
     this.scrollHint = false,
   });
 
@@ -52,6 +56,10 @@ class PartyGamesApp extends StatefulWidget {
 
   /// Sound signals; silent unless provided (so tests make no noise).
   final SoundService sounds;
+
+  /// Microphone recording and playback for Song Backwards; does nothing
+  /// unless provided.
+  final VoiceService voice;
 
   /// Auto-scroll the home screen once to show that it scrolls. Off by
   /// default so tests are not disturbed by a moving grid.
@@ -114,11 +122,14 @@ class _PartyGamesAppState extends State<PartyGamesApp> {
         settings: _settings,
         child: SoundScope(
           service: widget.sounds,
-          child: AdScope(
-            service: widget.ads,
-            child: ContentScope(
-              repository: widget.repository ?? ContentRepository(),
-              child: child!,
+          child: VoiceScope(
+            service: widget.voice,
+            child: AdScope(
+              service: widget.ads,
+              child: ContentScope(
+                repository: widget.repository ?? ContentRepository(),
+                child: child!,
+              ),
             ),
           ),
         ),

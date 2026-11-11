@@ -14,6 +14,7 @@ import '../spy/spy_round.dart';
 import '../mafia/mafia_round.dart';
 import 'charades_game_screen.dart';
 import 'game_screen.dart';
+import 'reverse_song_screen.dart';
 import 'mafia_game_screen.dart';
 import 'spy_game_screen.dart';
 
@@ -31,6 +32,7 @@ class SetupScreen extends StatefulWidget {
 class _SetupScreenState extends State<SetupScreen> {
   static const _maxNameLength = 14;
   static const _timerMinutes = [5, 8, 10, 15];
+  static const _roundChoices = [1, 2, 3, 4, 5];
 
   /// One controller per player; its length is the player count.
   late final _names = <TextEditingController>[
@@ -148,6 +150,10 @@ class _SetupScreenState extends State<SetupScreen> {
             appRunsNights: _appRunsNights,
             duration: Duration(minutes: _minutes),
           ),
+          GameMode.reverseSong => ReverseSongScreen(
+            playerNames: names,
+            rounds: _rounds,
+          ),
           GameMode.charades => CharadesGameScreen(
             playerNames: names,
             categories: Set.of(_spyCategories),
@@ -235,6 +241,9 @@ class _SetupScreenState extends State<SetupScreen> {
     if (widget.mode == GameMode.charades) {
       return _charadesOptions(s, header, divider);
     }
+    if (widget.mode == GameMode.reverseSong) {
+      return _reverseSongOptions(s, header, divider);
+    }
 
     if (widget.mode != GameMode.spy) {
       return [
@@ -313,6 +322,28 @@ class _SetupScreenState extends State<SetupScreen> {
     ];
   }
 
+  /// Song Backwards: only the number of rounds (the singers stop their own
+  /// recordings).
+  List<Widget> _reverseSongOptions(
+    Strings s,
+    Widget Function(IconData, String) header,
+    Widget divider,
+  ) {
+    return [
+      divider,
+      header(Icons.repeat_rounded, s['rounds']),
+      const SizedBox(height: 14),
+      _roundsPills(),
+    ];
+  }
+
+  Widget _roundsPills() => OptionPills<int>(
+    key: const Key('roundsPills'),
+    options: [for (final n in _roundChoices) (n, '$n')],
+    selected: _rounds,
+    onSelected: (n) => setState(() => _rounds = n),
+  );
+
   /// Charades: word categories, time per turn and rounds.
   List<Widget> _charadesOptions(
     Strings s,
@@ -353,12 +384,7 @@ class _SetupScreenState extends State<SetupScreen> {
       const SizedBox(height: 24),
       header(Icons.repeat_rounded, s['rounds']),
       const SizedBox(height: 14),
-      OptionPills<int>(
-        key: const Key('roundsPills'),
-        options: const [(1, '1'), (2, '2'), (3, '3')],
-        selected: _rounds,
-        onSelected: (n) => setState(() => _rounds = n),
-      ),
+      _roundsPills(),
     ];
   }
 

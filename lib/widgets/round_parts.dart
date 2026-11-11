@@ -158,3 +158,102 @@ class GradientText extends StatelessWidget {
     );
   }
 }
+
+/// The final scores: a headline, then the players from best to worst with
+/// a cup for the winner(s).
+class ResultBoard extends StatelessWidget {
+  const ResultBoard({
+    super.key,
+    required this.title,
+    required this.titleKey,
+    required this.subtitle,
+    required this.names,
+    required this.scores,
+    required this.winners,
+    required this.scoreKey,
+  });
+
+  final String title;
+  final Key titleKey;
+  final String subtitle;
+  final List<String> names;
+  final List<int> scores;
+
+  /// Positions of the winners (several when it is a tie).
+  final List<int> winners;
+
+  /// The key of the score text of player `i`.
+  final Key Function(int i) scoreKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final order = [for (var i = 0; i < names.length; i++) i]
+      ..sort((a, b) {
+        final byScore = scores[b].compareTo(scores[a]);
+        return byScore != 0 ? byScore : a.compareTo(b);
+      });
+    return Column(
+      children: [
+        GradientText(
+          title,
+          key: titleKey,
+          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          subtitle,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+        ),
+        const SizedBox(height: 14),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                for (final i in order)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      radius: 20,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                      child: Row(
+                        children: [
+                          if (winners.contains(i))
+                            const Padding(
+                              padding: EdgeInsets.only(right: 10),
+                              child: Icon(
+                                Icons.emoji_events_rounded,
+                                color: Color(0xFFFFC043),
+                              ),
+                            ),
+                          Expanded(
+                            child: Text(
+                              names[i],
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${scores[i]}',
+                            key: scoreKey(i),
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

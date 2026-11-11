@@ -14,12 +14,15 @@ import 'package:party_games/sound/sound_service.dart';
 import 'package:party_games/screens/home_screen.dart';
 import 'package:party_games/screens/setup_screen.dart';
 import 'package:party_games/screens/spy_game_screen.dart';
+import 'package:party_games/reverse/voice_service.dart';
+import 'package:party_games/reverse/wav_reverse.dart';
 import 'package:party_games/spy/spy_round.dart';
 import 'package:party_games/widgets/glass.dart';
 import 'package:party_games/widgets/round_parts.dart';
 import 'package:party_games/widgets/glass_pill.dart';
 
 import 'dart:math' show Random;
+import 'dart:typed_data';
 
 import 'package:party_games/widgets/category_chips.dart';
 
@@ -129,6 +132,88 @@ class FlakyRepository extends FakeRepository {
 }
 
 Widget app() => PartyGamesApp(repository: FakeRepository());
+
+/// A tiny 16-bit mono WAV whose samples count up from [base], so that a
+/// reversed copy is easy to tell from the original. [extraChunk] adds an
+/// unknown chunk before the audio (phones do that); [declaredSize] overrides
+/// the size written in the data chunk's header.
+Uint8List makeWav({
+  int frames = 8,
+  int base = 1,
+  bool extraChunk = false,
+  int? declaredSize,
+}) {
+  final out = BytesBuilder();
+  void u32(int v) =>
+      out.add([v & 255, (v >> 8) & 255, (v >> 16) & 255, v >> 24]);
+  void u16(int v) => out.add([v & 255, (v >> 8) & 255]);
+  final extra = extraChunk ? 8 + 2 : 0;
+  out.add('RIFF'.codeUnits);
+  u32(36 + extra + frames * 2);
+  out.add('WAVE'.codeUnits);
+  out.add('fmt '.codeUnits);
+  u32(16);
+  u16(1); // PCM
+  u16(1); // mono
+  u32(8000);
+  u32(16000);
+  u16(2);
+  u16(16);
+  if (extraChunk) {
+    out.add('JUNK'.codeUnits);
+    u32(2);
+    out.add([9, 9]);
+  }
+  out.add('data'.codeUnits);
+  u32(declaredSize ?? frames * 2);
+  for (var i = 0; i < frames; i++) {
+    u16(base + i);
+  }
+  return out.toBytes();
+}
+
+/// The samples of a WAV made by [makeWav] (the last `frames` ones).
+List<int> wavSamples(Uint8List wav, int frames) {
+  final data = ByteData.sublistView(wav);
+  return [
+    for (var i = 0; i < frames; i++)
+      data.getUint16(wav.length - frames * 2 + i * 2, Endian.little),
+  ];
+}
+
+/// Records nothing real: every "recording" is a WAV with its own numbers, and
+/// everything played is kept.
+class FakeVoiceService implements VoiceService {
+  bool permission = true;
+  var recordings = 0;
+  var _recording = false;
+  final played = <Uint8List>[];
+  final originals = <Uint8List>[];
+
+  @override
+  Future<bool> ensurePermission() async => permission;
+
+  @override
+  Future<void> startRecording() async => _recording = true;
+
+  @override
+  Future<Uint8List?> stopRecording() async {
+    if (!_recording) return null;
+    _recording = false;
+    final wav = makeWav(base: 100 * (++recordings));
+    originals.add(wav);
+    return wav;
+  }
+
+  @override
+  Future<void> play(Uint8List wav) async => played.add(wav);
+
+  @override
+  Future<void> stopPlaying() async {}
+
+  @override
+  void dispose() {}
+}
 
 void phone(WidgetTester tester) {
   tester.view.physicalSize = const Size(1170, 2532);
@@ -443,11 +528,12 @@ void main() {
     await tester.pumpWidget(app());
 
     // One help button per game card.
-    expect(find.byTooltip('Rules'), findsNWidgets(9));
+    expect(find.byTooltip('Rules'), findsNWidgets(10));
 
-    // The fourth card is Truth or Dare (Spy, Mafia and Charades come first);
+    // The fifth card is Truth or Dare (Spy, Mafia, Charades and Song Backwards
+    // come first);
     // the help button must not open the game.
-    await tester.tap(find.byTooltip('Rules').at(3));
+    await tester.tap(find.byTooltip('Rules').at(4));
     await settle(tester);
     expect(find.textContaining('Change Type'), findsOneWidget);
     expect(find.text('Start Game'), findsNothing);
@@ -2352,6 +2438,226 @@ void main() {
       await tester.tap(find.byTooltip('Rules').at(2));
       await settle(tester);
       expect(find.textContaining('gestures only'), findsOneWidget);
+    });
+  });
+
+  group('song backwards', () {
+    test('reverses the samples and keeps the header', () {
+      final wav = makeWav(frames: 6, base: 1);
+      final back = reverseWav(wav);
+      expect(back.length, wav.length);
+      expect(wavSamples(back, 6), [6, 5, 4, 3, 2, 1]);
+      // The header is the same, so it still plays.
+      expect(back.sublist(0, wav.length - 12), wav.sublist(0, wav.length - 12));
+      // Reversing twice gives the original back.
+      expect(reverseWav(back), wav);
+    });
+
+    test('copes with extra chunks and a wrong data size', () {
+      final withJunk = makeWav(frames: 5, extraChunk: true);
+      expect(wavSamples(reverseWav(withJunk), 5), [5, 4, 3, 2, 1]);
+
+      // A recording that was not finished properly says 0 (or too much).
+      for (final size in [0, 0xFFFFFFFF]) {
+        final wav = makeWav(frames: 4, declaredSize: size);
+        expect(wavSamples(reverseWav(wav), 4), [4, 3, 2, 1]);
+      }
+    });
+
+    test('refuses what is not PCM WAV audio', () {
+      expect(
+        () => reverseWav(Uint8List.fromList(List.filled(40, 7))),
+        throwsFormatException,
+      );
+      expect(() => reverseWav(Uint8List(3)), throwsFormatException);
+    });
+
+    test('knows how long a recording is', () {
+      // 8000 frames at 8000 Hz: one second.
+      expect(wavDuration(makeWav(frames: 8000)), const Duration(seconds: 1));
+      expect(wavDuration(Uint8List(5)), Duration.zero);
+    });
+
+    Future<FakeVoiceService> startSongBackwards(WidgetTester tester) async {
+      spyPhone(tester);
+      final voice = FakeVoiceService();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), voice: voice),
+      );
+      await openGame(tester, 'Song Backwards');
+      await settle(tester);
+      expect(find.byKey(const Key('roundsPills')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
+        '3',
+      );
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      return voice;
+    }
+
+    Future<void> tapText(WidgetTester tester, String text) async {
+      await tester.tap(find.text(text));
+      await settle(tester);
+    }
+
+    Future<void> record(WidgetTester tester, {int seconds = 3}) async {
+      await tester.tap(find.byKey(const Key('reverseRecordButton')));
+      await tester.pump();
+      await tester.pump(Duration(seconds: seconds));
+      await tester.tap(find.byKey(const Key('reverseRecordButton')));
+      await settle(tester);
+    }
+
+    Future<void> play(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('reversePlayButton')));
+      await tester.pump();
+    }
+
+    String title(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('reverseTitle'))).data!;
+
+    String passName(WidgetTester tester, String key) =>
+        tester.widget<GradientText>(find.byKey(Key(key))).text;
+
+    testWidgets('is fourth and starts with three players', (tester) async {
+      expect(GameMode.values[3], GameMode.reverseSong);
+    });
+
+    testWidgets('one turn: sing, hear it backwards, sing back, guess', (
+      tester,
+    ) async {
+      final voice = await startSongBackwards(tester);
+      expect(passName(tester, 'reverseSinger'), 'Player 1');
+      await tapText(tester, "I'm ready");
+
+      expect(title(tester), 'Player 1, sing a song!');
+      await tester.tap(find.byKey(const Key('reverseRecordButton')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text('0:03'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('reverseRecordButton')));
+      await settle(tester);
+
+      // The next player gets the phone and hears the recording backwards.
+      expect(passName(tester, 'reverseImitator'), 'Player 2');
+      await tapText(tester, "I'm ready");
+      expect(title(tester), 'Player 2, listen closely');
+      await play(tester);
+      expect(voice.played.single, reverseWav(voice.originals[0]));
+      await tapText(tester, 'Now sing it back');
+
+      // Their attempt is recorded, then played backwards for everyone.
+      expect(title(tester), 'Sing what you heard');
+      await record(tester);
+      expect(title(tester), 'Guess the song!');
+      await play(tester);
+      expect(voice.played.last, reverseWav(voice.originals[1]));
+      await tapText(tester, 'Reveal the song');
+
+      // The original proves it.
+      expect(title(tester), 'The original');
+      await play(tester);
+      expect(voice.played.last, voice.originals[0]);
+      await tapText(tester, 'Guessed it!');
+
+      // The next turn: Player 2 sings, Player 3 imitates.
+      expect(passName(tester, 'reverseSinger'), 'Player 2');
+    });
+
+    testWidgets('up to five rounds can be chosen', (tester) async {
+      spyPhone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), voice: FakeVoiceService()),
+      );
+      await openGame(tester, 'Song Backwards');
+      await settle(tester);
+      final five = find.descendant(
+        of: find.byKey(const Key('roundsPills')),
+        matching: find.text('5'),
+      );
+      await tester.ensureVisible(five);
+      await tester.pump();
+      await tester.tap(five);
+      await tester.pump();
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+      expect(find.text('Round 1 of 5'), findsOneWidget);
+    });
+
+    testWidgets('a forgotten recording stops by itself after two minutes', (
+      tester,
+    ) async {
+      await startSongBackwards(tester);
+      await tapText(tester, "I'm ready");
+      await tester.tap(find.byKey(const Key('reverseRecordButton')));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 119));
+      expect(find.byKey(const Key('reverseImitator')), findsNothing);
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const Key('reverseImitator')), findsOneWidget);
+    });
+
+    testWidgets('without the microphone the game says so', (tester) async {
+      final voice = await startSongBackwards(tester);
+      voice.permission = false;
+      await tapText(tester, "I'm ready");
+      await tester.tap(find.byKey(const Key('reverseRecordButton')));
+      await settle(tester);
+      expect(find.textContaining('The microphone is needed'), findsOneWidget);
+      // Once it is allowed, trying again works.
+      voice.permission = true;
+      await tapText(tester, 'Try again');
+      await record(tester);
+      expect(find.byKey(const Key('reverseImitator')), findsOneWidget);
+    });
+
+    testWidgets('both singers score when the song is guessed', (tester) async {
+      await startSongBackwards(tester);
+      for (var turn = 0; turn < 3; turn++) {
+        await tapText(tester, "I'm ready");
+        await record(tester);
+        await tapText(tester, "I'm ready");
+        await tapText(tester, 'Now sing it back');
+        await record(tester);
+        await tapText(tester, 'Reveal the song');
+        // Guessed in the first two turns only.
+        await tapText(tester, turn < 2 ? 'Guessed it!' : 'Not this time');
+      }
+      // P1: 1 (turn 1). P2: 2 (turns 1 and 2). P3: 1 (turn 2).
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('reverseWinner')))
+            .text,
+        'Player 2 wins!',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('reverseFinal0'))).data,
+        '1',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('reverseFinal1'))).data,
+        '2',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('reverseFinal2'))).data,
+        '1',
+      );
+
+      await tapText(tester, 'Finish');
+      expect(find.byType(HomeScreen), findsOneWidget);
+    });
+
+    testWidgets('its rules are explained in the help popover', (tester) async {
+      phone(tester);
+      await tester.pumpWidget(app());
+      await tester.tap(find.byTooltip('Rules').at(3));
+      await settle(tester);
+      expect(find.textContaining('backwards'), findsWidgets);
     });
   });
 }

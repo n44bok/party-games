@@ -6,6 +6,8 @@
 	     with the real one from the AdMob console before release. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The microphone is used in the game Song Backwards: you sing a short part of a song and the app plays it backwards. Recordings stay on the phone and are deleted after each round.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

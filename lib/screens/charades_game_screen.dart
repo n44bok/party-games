@@ -419,74 +419,21 @@ class _CharadesGameScreenState extends State<CharadesGameScreen> {
 
   Widget _buildResult(Strings s) {
     final winners = charadesWinners(_scores);
-    final order = [for (var i = 0; i < _players; i++) i]
-      ..sort((a, b) {
-        final byScore = _scores[b].compareTo(_scores[a]);
-        return byScore != 0 ? byScore : a.compareTo(b);
-      });
     return Column(
       children: [
-        GradientText(
-          winners.length == 1
-              ? s.format('charades_winner', {
-                  'name': widget.playerNames[winners.single],
-                })
-              : s['charades_tie'],
-          key: const Key('charadesWinner'),
-          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          s['charades_scores'],
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-        ),
-        const SizedBox(height: 14),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                for (final i in order)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: GlassCard(
-                      radius: 20,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 14,
-                      ),
-                      child: Row(
-                        children: [
-                          if (winners.contains(i))
-                            const Padding(
-                              padding: EdgeInsets.only(right: 10),
-                              child: Icon(
-                                Icons.emoji_events_rounded,
-                                color: Color(0xFFFFC043),
-                              ),
-                            ),
-                          Expanded(
-                            child: Text(
-                              widget.playerNames[i],
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '${_scores[i]}',
-                            key: Key('charadesFinal$i'),
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+          child: ResultBoard(
+            title: winners.length == 1
+                ? s.format('charades_winner', {
+                    'name': widget.playerNames[winners.single],
+                  })
+                : s['charades_tie'],
+            titleKey: const Key('charadesWinner'),
+            subtitle: s['charades_scores'],
+            names: widget.playerNames,
+            scores: _scores,
+            winners: winners,
+            scoreKey: (i) => Key('charadesFinal$i'),
           ),
         ),
         GradientButton(
