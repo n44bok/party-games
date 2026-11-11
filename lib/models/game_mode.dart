@@ -21,6 +21,10 @@ enum GameMode {
     Color(0xFFC6E03A),
     Color(0xFF55661A),
   ]),
+  mafia('mafia', Icons.nightlight_round, [
+    Color(0xFFC23A52),
+    Color(0xFF4A1226),
+  ]),
   truthOrDare('truth_or_dare', Icons.local_fire_department, [
     Color(0xFFE8548F),
     Color(0xFF8A2C6B),
@@ -55,14 +59,26 @@ enum GameMode {
   Color get color => colors.last;
 
   /// Fewest players the game works with.
-  int get minPlayers => this == spy ? 3 : 2;
+  int get minPlayers => switch (this) {
+    spy => 3,
+    mafia => 5,
+    _ => 2,
+  };
 
   /// Players preselected on the setup screen.
-  int get defaultPlayers => this == spy ? 3 : 2;
+  int get defaultPlayers => switch (this) {
+    spy => 3,
+    mafia => 6,
+    _ => 2,
+  };
+
+  /// Games where each player gets a secret role on a shared phone.
+  bool get isRoleGame => this == spy || this == mafia;
 
   /// Accent that glows in from a corner of the home-screen card.
   Color get glow => switch (this) {
     spy => const Color(0xFFC6E03A),
+    mafia => const Color(0xFFFF3B55),
     truthOrDare => const Color(0xFFFF4F92),
     mostLikely => const Color(0xFF8A5CFF),
     neverHaveIEver => const Color(0xFFFF6A3D),
@@ -82,6 +98,7 @@ enum GameMode {
   /// Pastel version of [glow] for the card icon.
   Color get tint => switch (this) {
     spy => const Color(0xFFEEF7A8),
+    mafia => const Color(0xFFFFA3AE),
     truthOrDare => const Color(0xFFFF9EC4),
     mostLikely => const Color(0xFFC9A8FF),
     neverHaveIEver => const Color(0xFFFFB59A),

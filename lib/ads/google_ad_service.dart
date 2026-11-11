@@ -28,7 +28,7 @@ class AdUnits {
   };
 }
 
-/// AdMob ads: a banner on the home screen and one full-screen ad per game,
+/// AdMob ads: banners on the home and setup screens and one full-screen ad per game,
 /// after a few rounds. Nothing is shown once [SettingsController.adsRemoved] is set.
 // TODO(ads): rewarded ads to unlock premium categories.
 // TODO(ads): ask for consent (UMP, and ATT on iOS) before serving real ads.
@@ -143,8 +143,9 @@ class GoogleAdService implements AdService {
       isSupported ? _BannerView(settings: _settings) : const SizedBox.shrink();
 }
 
-/// A standard 320x50 banner. Takes no space until an ad has loaded, so a
-/// failed or missing ad leaves no gap.
+/// An anchored adaptive banner: AdMob picks the height for the width it is
+/// given, so it spans the available width. Takes no space until an ad has
+/// loaded, so a failed or missing ad leaves no gap.
 class _BannerView extends StatefulWidget {
   const _BannerView({required this.settings});
 
@@ -156,27 +157,35 @@ class _BannerView extends StatefulWidget {
 
 class _BannerViewState extends State<_BannerView> {
   BannerAd? _ad;
+  bool _loading = false;
+  int? _width;
 
   @override
   void initState() {
     super.initState();
     widget.settings.addListener(_onSettingsChanged);
-    _loadIfAllowed();
   }
 
   void _onSettingsChanged() {
     if (widget.settings.adsRemoved) {
       _discard();
-    } else {
-      _loadIfAllowed();
+    } else if (mounted) {
+      setState(() {});
     }
   }
 
-  void _loadIfAllowed() {
-    if (widget.settings.adsRemoved || _ad != null) return;
+  Future<void> _load(int width) async {
+    if (widget.settings.adsRemoved || _ad != null || _loading) return;
+    _loading = true;
+    _width = width;
+    final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
+    if (!mounted || size == null || widget.settings.adsRemoved) {
+      _loading = false;
+      return;
+    }
     final ad = BannerAd(
       adUnitId: AdUnits.banner,
-      size: AdSize.banner,
+      size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (loaded) {
@@ -191,6 +200,7 @@ class _BannerViewState extends State<_BannerView> {
       ),
     );
     _ad = ad;
+    _loading = false;
     ad.load();
   }
 
@@ -209,14 +219,33 @@ class _BannerViewState extends State<_BannerView> {
 
   @override
   Widget build(BuildContext context) {
-    final ad = _ad;
-    if (ad == null || widget.settings.adsRemoved) {
-      return const SizedBox.shrink();
-    }
-    return SizedBox(
-      width: ad.size.width.toDouble(),
-      height: ad.size.height.toDouble(),
-      child: AdWidget(ad: ad),
+    if (widget.settings.adsRemoved) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth.truncate()
+            : MediaQuery.sizeOf(context).width.truncate();
+        if (_ad == null && !_loading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _load(width);
+          });
+        } else if (_ad != null && _width != width) {
+          // Width changed (rotation): load a banner sized for it.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _ad?.dispose();
+            _ad = null;
+            _load(width);
+          });
+        }
+        final ad = _ad;
+        if (ad == null) return const SizedBox.shrink();
+        return SizedBox(
+          width: ad.size.width.toDouble(),
+          height: ad.size.height.toDouble(),
+          child: AdWidget(ad: ad),
+        );
+      },
     );
   }
 }

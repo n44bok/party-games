@@ -5,6 +5,7 @@ import 'package:party_games/ads/ad_service.dart';
 import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
+import 'package:party_games/mafia/mafia_round.dart';
 import 'package:party_games/models/game_mode.dart';
 import 'package:party_games/screens/game_screen.dart';
 import 'package:party_games/sound/sound_service.dart';
@@ -450,11 +451,11 @@ void main() {
     await tester.pumpWidget(app());
 
     // One help button per game card.
-    expect(find.byTooltip('Rules'), findsNWidgets(7));
+    expect(find.byTooltip('Rules'), findsNWidgets(8));
 
-    // The second card is Truth or Dare (Spy is first); the help button must
-    // not open the game.
-    await tester.tap(find.byTooltip('Rules').at(1));
+    // The third card is Truth or Dare (Spy and Mafia come first); the help
+    // button must not open the game.
+    await tester.tap(find.byTooltip('Rules').at(2));
     await settle(tester);
     expect(find.textContaining('Change Type'), findsOneWidget);
     expect(find.text('Start Game'), findsNothing);
@@ -1009,13 +1010,10 @@ void main() {
       await tester.pumpWidget(app());
       // Top row, left column: above the second row and left of the next card.
       final spy = tester.getTopLeft(find.text('Spy'));
-      expect(
-        spy.dx,
-        lessThan(tester.getTopLeft(find.text('Truth or Dare')).dx),
-      );
+      expect(spy.dx, lessThan(tester.getTopLeft(find.text('Mafia')).dx));
       expect(
         spy.dy,
-        lessThan(tester.getTopLeft(find.text('Most Likely To')).dy),
+        lessThan(tester.getTopLeft(find.text('Truth or Dare')).dy),
       );
     });
 
@@ -1604,8 +1602,6 @@ void main() {
       await tester.pump();
       expect(tester.widget<Switch>(warningSwitch).value, isFalse);
       expect(settings.timeWarning, isFalse); // remembered for next time
-      // Independent of the sound switch.
-      expect(settings.sound, isTrue);
     });
 
     testWidgets('the setup starts from the remembered choice', (tester) async {
@@ -1773,32 +1769,6 @@ void main() {
       expect(field.controller!.text, isEmpty);
     });
 
-    test('the sound setting is on by default and is remembered', () async {
-      SharedPreferences.setMockInitialValues({});
-      final settings = await SettingsController.load();
-      expect(settings.sound, isTrue);
-      await settings.setSound(false);
-      expect((await SettingsController.load()).sound, isFalse);
-    });
-
-    testWidgets('sound can be switched in the settings screen', (tester) async {
-      phone(tester);
-      final settings = SettingsController();
-      await tester.pumpWidget(
-        PartyGamesApp(repository: FakeRepository(), settings: settings),
-      );
-      await tester.tap(find.byTooltip('Settings'));
-      await settle(tester);
-      expect(find.text('Sound'), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('soundSwitch')));
-      await settle(tester);
-      expect(settings.sound, isFalse);
-      // Independent of vibration and of the time warning.
-      expect(settings.haptics, isTrue);
-      expect(settings.timeWarning, isTrue);
-    });
-
     testWidgets('beeps at 30 seconds, and the buzzer when time is out', (
       tester,
     ) async {
@@ -1821,20 +1791,6 @@ void main() {
       expect(sounds.timeUps, 1);
       await tester.pump(const Duration(seconds: 30));
       expect(sounds.timeUps, 1); // the timer has stopped
-    });
-
-    testWidgets('no sound at all when sound is switched off', (tester) async {
-      final sounds = FakeSoundService();
-      await toDiscussion(
-        tester,
-        SettingsController(sound: false),
-        sounds: sounds,
-      );
-      await tester.pump(const Duration(seconds: 300));
-      expect(sounds.warnings, 0);
-      expect(sounds.timeUps, 0);
-      // The visual signals are separate and still there.
-      expect(find.text('Time is up! Vote for the spy.'), findsOneWidget);
     });
 
     testWidgets('with the warning off only the final buzzer sounds', (
@@ -1970,5 +1926,158 @@ void main() {
         expect(find.text('Could not load content'), findsNothing);
       });
     }
+  });
+
+  group('mafia', () {
+    test('deals the roles', () {
+      final round = MafiaRound.start(players: 6, mafia: 2, random: Random(1));
+      expect(round.roles, hasLength(6));
+      expect(round.count(MafiaRole.mafia), 2);
+      expect(round.count(MafiaRole.doctor), 1);
+      expect(round.count(MafiaRole.detective), 1);
+      expect(round.count(MafiaRole.citizen), 2);
+      expect(round.mafiaIndexes, hasLength(2));
+      expect(round.firstSpeaker, inInclusiveRange(0, 5));
+    });
+
+    test('the special roles are optional', () {
+      final round = MafiaRound.start(
+        players: 5,
+        mafia: 1,
+        doctor: false,
+        detective: false,
+        random: Random(2),
+      );
+      expect(round.count(MafiaRole.mafia), 1);
+      expect(round.count(MafiaRole.doctor), 0);
+      expect(round.count(MafiaRole.detective), 0);
+      expect(round.count(MafiaRole.citizen), 4);
+    });
+
+    test('the mafia stay a minority and a citizen is always left', () {
+      for (var players = MafiaRound.minPlayers; players <= 12; players++) {
+        final mafia = MafiaRound.maxMafiaFor(players);
+        expect(mafia * 2, lessThan(players));
+        final round = MafiaRound.start(players: players, mafia: mafia);
+        expect(round.count(MafiaRole.citizen), greaterThanOrEqualTo(1));
+      }
+    });
+
+    testWidgets('is the second game and starts with six players', (
+      tester,
+    ) async {
+      expect(GameMode.values[1], GameMode.mafia);
+      spyPhone(tester);
+      await tester.pumpWidget(app());
+      await openGame(tester, 'Mafia');
+      await settle(tester);
+      expect(find.text('6'), findsOneWidget); // playersCount
+      expect(find.byKey(const Key('mafiaCountPills')), findsOneWidget);
+
+      // Five is the fewest.
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.byTooltip('−'));
+        await tester.pump();
+      }
+      expect(
+        tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
+        '5',
+      );
+    });
+
+    testWidgets('plays through roles, day and the result', (tester) async {
+      spyPhone(tester);
+      await tester.pumpWidget(app());
+      await openGame(tester, 'Mafia');
+      await settle(tester);
+      await startGame(tester);
+      await settle(tester);
+
+      final roles = <String>[];
+      for (var i = 0; i < 6; i++) {
+        expect(find.byKey(const Key('mafiaPassName')), findsOneWidget);
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        final role = tester
+            .widget<Text>(find.byKey(const Key('mafiaRole')))
+            .data!;
+        roles.add(role);
+        // Only the mafia are told about their team.
+        expect(
+          find.byKey(const Key('mafiaTeam')),
+          role == 'Mafia' ? findsOneWidget : findsNothing,
+        );
+        await tester.tap(
+          find.text(i == 5 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+      expect(roles.where((r) => r == 'Mafia'), hasLength(1));
+      expect(roles.where((r) => r == 'Doctor'), hasLength(1));
+      expect(roles.where((r) => r == 'Detective'), hasLength(1));
+      expect(roles.where((r) => r == 'Citizen'), hasLength(3));
+
+      // The day: a timer and which roles are in play.
+      expect(find.text('8:00'), findsOneWidget);
+      expect(find.byKey(const Key('mafiaRolesInPlay')), findsOneWidget);
+      await tester.pump(const Duration(minutes: 8));
+      await tester.pump();
+      expect(find.text('Time is up! Vote someone out.'), findsOneWidget);
+
+      await tester.tap(find.text('Show all roles'));
+      await settle(tester);
+      for (var i = 0; i < 6; i++) {
+        expect(find.byKey(Key('mafiaListRole$i')), findsOneWidget);
+      }
+
+      // Finish goes all the way home.
+      await tester.tap(find.text('Finish'));
+      await settle(tester);
+      expect(find.byType(HomeScreen), findsOneWidget);
+    });
+
+    testWidgets('a host sees all the roles before the day starts', (
+      tester,
+    ) async {
+      spyPhone(tester);
+      await tester.pumpWidget(app());
+      await openGame(tester, 'Mafia');
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const Key('hostSwitch')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('hostSwitch')));
+      await tester.pump();
+      await startGame(tester);
+      await settle(tester);
+
+      for (var i = 0; i < 6; i++) {
+        await tester.tap(find.text('Show my role'));
+        await settle(tester);
+        await tester.tap(
+          find.text(i == 5 ? 'Hide and start' : 'Hide and pass on'),
+        );
+        await settle(tester);
+      }
+      // The phone goes to the host first, who then sees everything.
+      expect(find.byKey(const Key('mafiaHostName')), findsOneWidget);
+      expect(find.byKey(const Key('mafiaTimer')), findsNothing);
+      await tester.tap(find.text('Show my role'));
+      await settle(tester);
+      expect(find.text('Roles for the host'), findsOneWidget);
+      for (var i = 0; i < 6; i++) {
+        expect(find.byKey(Key('mafiaListRole$i')), findsOneWidget);
+      }
+      await tester.tap(find.text('Hide and start'));
+      await settle(tester);
+      expect(find.byKey(const Key('mafiaTimer')), findsOneWidget);
+    });
+
+    testWidgets('its rules are explained in the help popover', (tester) async {
+      phone(tester);
+      await tester.pumpWidget(app());
+      await tester.tap(find.byTooltip('Rules').at(1));
+      await settle(tester);
+      expect(find.textContaining('secret role'), findsOneWidget);
+    });
   });
 }

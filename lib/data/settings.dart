@@ -16,19 +16,16 @@ class SettingsController extends ChangeNotifier {
     bool haptics = true,
     bool adsRemoved = false,
     bool timeWarning = true,
-    bool sound = true,
   }) : _prefs = prefs,
        _locale = locale,
        _haptics = haptics,
        _adsRemoved = adsRemoved,
-       _timeWarning = timeWarning,
-       _sound = sound;
+       _timeWarning = timeWarning;
 
   static const _localeKey = 'locale';
   static const _hapticsKey = 'haptics';
   static const _adsRemovedKey = 'adsRemoved';
   static const _timeWarningKey = 'timeWarning';
-  static const _soundKey = 'sound';
 
   /// Longest own Spy word.
   static const maxSpyWordLength = 30;
@@ -45,7 +42,6 @@ class SettingsController extends ChangeNotifier {
         haptics: prefs.getBool(_hapticsKey) ?? true,
         adsRemoved: prefs.getBool(_adsRemovedKey) ?? false,
         timeWarning: prefs.getBool(_timeWarningKey) ?? true,
-        sound: prefs.getBool(_soundKey) ?? true,
       );
     } catch (e) {
       debugPrint('Could not load settings, using defaults: $e');
@@ -59,7 +55,6 @@ class SettingsController extends ChangeNotifier {
   bool _haptics;
   bool _adsRemoved;
   bool _timeWarning;
-  bool _sound;
 
   /// `null` means "follow the system language".
   Locale? get locale => _locale;
@@ -75,16 +70,6 @@ class SettingsController extends ChangeNotifier {
     _adsRemoved = value;
     notifyListeners();
     await _prefs?.setBool(_adsRemovedKey, value);
-  }
-
-  /// Whether the game may play sounds (the time signals in Spy).
-  bool get sound => _sound;
-
-  Future<void> setSound(bool value) async {
-    if (value == _sound) return;
-    _sound = value;
-    notifyListeners();
-    await _prefs?.setBool(_soundKey, value);
   }
 
   /// Whether Spy warns the players shortly before the time runs out.

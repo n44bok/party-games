@@ -16,6 +16,7 @@ import '../spy/spy_round.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
 import '../widgets/load_error.dart';
+import '../widgets/round_parts.dart';
 
 enum _Phase { loading, reveal, discussion, result }
 
@@ -175,9 +176,9 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
     if (SettingsScope.read(context).haptics) HapticFeedback.vibrate();
   }
 
-  /// Plays a sound if the player has sound switched on.
+  /// Plays a sound.
   void _sound(void Function(SoundService sounds) play) {
-    if (SettingsScope.read(context).sound) play(SoundScope.read(context));
+    play(SoundScope.read(context));
   }
 
   void _showRole() {
@@ -297,10 +298,11 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
                     location: round.word,
                     strings: s,
                   )
-                : _PassCard(
+                : PassCard(
                     key: ValueKey('pass$_turn'),
                     name: name,
-                    strings: s,
+                    label: s['spy_pass_to'],
+                    nameKey: const Key('spyPassName'),
                   ),
           ),
         ),
@@ -335,7 +337,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
         ),
         Expanded(
           child: Center(
-            child: _TimerDial(
+            child: TimerDial(
               seconds: _remaining,
               total: widget.duration.inSeconds,
               caption: timeUp
@@ -345,6 +347,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
                   : s['spy_time_left'],
               highlight: timeUp,
               warning: _inWarning,
+              timerKey: const Key('spyTimer'),
             ),
           ),
         ),
@@ -389,7 +392,7 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
                   for (final name in spyNames)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: _GradientText(
+                      child: GradientText(
                         name,
                         key: const Key('spyName'),
                         style: const TextStyle(
@@ -449,49 +452,6 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
               Navigator.of(context).popUntil((route) => route.isFirst),
         ),
       ],
-    );
-  }
-}
-
-/// "Pass the phone to NAME": shown before a player looks at their role.
-class _PassCard extends StatelessWidget {
-  const _PassCard({super.key, required this.name, required this.strings});
-
-  final String name;
-  final Strings strings;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      radius: 32,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 36),
-      child: SizedBox(
-        width: double.infinity,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.phone_iphone_rounded,
-              size: 52,
-              color: Colors.white.withValues(alpha: 0.85),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              strings['spy_pass_to'],
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.white.withValues(alpha: 0.75),
-              ),
-            ),
-            const SizedBox(height: 10),
-            _GradientText(
-              name,
-              key: const Key('spyPassName'),
-              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -588,110 +548,6 @@ class _RoleCard extends StatelessWidget {
                   ),
                 ],
               ),
-      ),
-    );
-  }
-}
-
-/// The countdown: a ring that drains, with the time inside.
-class _TimerDial extends StatelessWidget {
-  const _TimerDial({
-    required this.seconds,
-    required this.total,
-    required this.caption,
-    required this.highlight,
-    this.warning = false,
-  });
-
-  final int seconds;
-  final int total;
-  final String caption;
-
-  /// Time is up.
-  final bool highlight;
-
-  /// Time is nearly up: hurry.
-  final bool warning;
-
-  static String format(int seconds) =>
-      '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 260,
-      height: 260,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox.expand(
-            child: CircularProgressIndicator(
-              value: total == 0 ? 0 : seconds / total,
-              strokeWidth: 10,
-              strokeCap: StrokeCap.round,
-              backgroundColor: Colors.white.withValues(alpha: 0.10),
-              valueColor: AlwaysStoppedAnimation(
-                highlight
-                    ? const Color(0xFFFF6A6A)
-                    : warning
-                    ? const Color(0xFFFFB347)
-                    : const Color(0xFFF06FB5),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  format(seconds),
-                  key: const Key('spyTimer'),
-                  style: const TextStyle(
-                    fontSize: 64,
-                    fontWeight: FontWeight.w800,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  caption,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: warning ? FontWeight.w700 : FontWeight.w400,
-                    color: highlight
-                        ? const Color(0xFFFF9E9E)
-                        : warning
-                        ? const Color(0xFFFFC46B)
-                        : Colors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Text filled with the brand gradient.
-class _GradientText extends StatelessWidget {
-  const _GradientText(this.text, {super.key, required this.style});
-
-  final String text;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (rect) => brandGradient.createShader(rect),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: style.copyWith(color: Colors.white),
       ),
     );
   }

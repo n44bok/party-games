@@ -11,7 +11,9 @@ import '../widgets/glass_pill.dart';
 import '../widgets/multi_select.dart';
 import '../widgets/gradient_background.dart';
 import '../spy/spy_round.dart';
+import '../mafia/mafia_round.dart';
 import 'game_screen.dart';
+import 'mafia_game_screen.dart';
 import 'spy_game_screen.dart';
 
 class SetupScreen extends StatefulWidget {
@@ -45,6 +47,12 @@ class _SetupScreenState extends State<SetupScreen> {
   int _spies = 1;
   int _minutes = 8;
 
+  // Mafia options.
+  int _mafia = 1;
+  bool _doctor = true;
+  bool _detective = true;
+  bool _withHost = false;
+
   /// The time warning is part of this game's options; the choice is
   /// remembered between games.
   late bool _timeWarning = SettingsScope.read(context).timeWarning;
@@ -52,8 +60,8 @@ class _SetupScreenState extends State<SetupScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.mode == GameMode.spy) {
-      // Spy shows its one ad when the game starts, so have it loaded by then.
+    if (widget.mode.isRoleGame) {
+      // Spy and Mafia show their one ad when the game starts, so have it loaded by then.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) AdScope.read(context).prepareInterstitial();
       });
@@ -84,6 +92,7 @@ class _SetupScreenState extends State<SetupScreen> {
     }
     // Fewer players may no longer allow as many spies.
     _spies = _spies.clamp(1, SpyRound.maxSpiesFor(_players));
+    _mafia = _mafia.clamp(1, MafiaRound.maxMafiaFor(_players));
   });
 
   void _start() {
@@ -113,22 +122,31 @@ class _SetupScreenState extends State<SetupScreen> {
     ];
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => widget.mode == GameMode.spy
-            ? SpyGameScreen(
-                playerNames: names,
-                spies: _spies,
-                duration: Duration(minutes: _minutes),
-                categories: Set.of(_spyCategories),
-                ownWord: _spyCategories.contains(SpyCategory.single)
-                    ? ownWord
-                    : null,
-                timeWarning: _timeWarning,
-              )
-            : GameScreen(
-                mode: widget.mode,
-                playerNames: names,
-                category: _category,
-              ),
+        builder: (_) => switch (widget.mode) {
+          GameMode.mafia => MafiaGameScreen(
+            playerNames: names,
+            mafia: _mafia,
+            doctor: _doctor,
+            detective: _detective,
+            withHost: _withHost,
+            duration: Duration(minutes: _minutes),
+          ),
+          GameMode.spy => SpyGameScreen(
+            playerNames: names,
+            spies: _spies,
+            duration: Duration(minutes: _minutes),
+            categories: Set.of(_spyCategories),
+            ownWord: _spyCategories.contains(SpyCategory.single)
+                ? ownWord
+                : null,
+            timeWarning: _timeWarning,
+          ),
+          _ => GameScreen(
+            mode: widget.mode,
+            playerNames: names,
+            category: _category,
+          ),
+        },
       ),
     );
   }
@@ -189,6 +207,8 @@ class _SetupScreenState extends State<SetupScreen> {
       height: 32,
       color: Colors.white.withValues(alpha: 0.14),
     );
+
+    if (widget.mode == GameMode.mafia) return _mafiaOptions(s, header, divider);
 
     if (widget.mode != GameMode.spy) {
       return [
@@ -263,6 +283,65 @@ class _SetupScreenState extends State<SetupScreen> {
           setState(() => _timeWarning = value);
           SettingsScope.read(context).setTimeWarning(value); // remember it
         },
+      ),
+    ];
+  }
+
+  /// Mafia: how many mafia members, which special roles, a host, the timer.
+  List<Widget> _mafiaOptions(
+    Strings s,
+    Widget Function(IconData, String) header,
+    Widget divider,
+  ) {
+    final maxMafia = MafiaRound.maxMafiaFor(_players);
+    return [
+      divider,
+      header(Icons.nightlight_outlined, s['mafia_members']),
+      const SizedBox(height: 14),
+      OptionPills<int>(
+        key: const Key('mafiaCountPills'),
+        options: const [(1, '1'), (2, '2'), (3, '3')],
+        selected: _mafia,
+        isEnabled: (n) => n <= maxMafia,
+        onSelected: (n) => setState(() => _mafia = n),
+      ),
+      const SizedBox(height: 20),
+      _OptionSwitchRow(
+        icon: Icons.medical_services_outlined,
+        title: s['doctor_option'],
+        description: s['doctor_option_desc'],
+        switchKey: const Key('doctorSwitch'),
+        value: _doctor,
+        onChanged: (v) => setState(() => _doctor = v),
+      ),
+      const SizedBox(height: 14),
+      _OptionSwitchRow(
+        icon: Icons.search_rounded,
+        title: s['detective_option'],
+        description: s['detective_option_desc'],
+        switchKey: const Key('detectiveSwitch'),
+        value: _detective,
+        onChanged: (v) => setState(() => _detective = v),
+      ),
+      const SizedBox(height: 14),
+      _OptionSwitchRow(
+        icon: Icons.record_voice_over_outlined,
+        title: s['host_option'],
+        description: s['host_option_desc'],
+        switchKey: const Key('hostSwitch'),
+        value: _withHost,
+        onChanged: (v) => setState(() => _withHost = v),
+      ),
+      const SizedBox(height: 24),
+      header(Icons.timer_outlined, s['timer']),
+      const SizedBox(height: 14),
+      OptionPills<int>(
+        key: const Key('timerPills'),
+        options: [
+          for (final m in _timerMinutes) (m, s.format('minutes', {'n': m})),
+        ],
+        selected: _minutes,
+        onSelected: (m) => setState(() => _minutes = m),
       ),
     ];
   }
@@ -393,6 +472,14 @@ class _SetupScreenState extends State<SetupScreen> {
                               icon: Icons.play_arrow_rounded,
                               onPressed: _start,
                             ),
+                            // Banner under the button; takes no space until
+                            // an ad has loaded.
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Center(
+                                child: AdScope.of(context).buildBanner(),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -485,6 +572,58 @@ class _TimeWarningRow extends StatelessWidget {
         ),
         Switch(
           key: const Key('timeWarningSwitch'),
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: const Color(0xFFB45CF5),
+          activeThumbColor: Colors.white,
+        ),
+      ],
+    );
+  }
+}
+
+/// A titled switch with a short description under the title.
+class _OptionSwitchRow extends StatelessWidget {
+  const _OptionSwitchRow({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.switchKey,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final Key switchKey;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Icon(icon),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: theme.textTheme.titleMedium),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          key: switchKey,
           value: value,
           onChanged: onChanged,
           activeTrackColor: const Color(0xFFB45CF5),
