@@ -5,40 +5,20 @@ import '../widgets/glass.dart';
 import '../widgets/glass_blob.dart';
 import '../widgets/gradient_background.dart';
 
-/// Premium offers shown on the paywall.
+/// The single Premium offer: a one-time purchase that removes ads for good.
 ///
-/// MOCK: the prices are placeholders and nothing can be bought yet.
-// TODO(iap): replace with products from in_app_purchase, using the store's
-// localized prices and the real product ids.
-enum PremiumPlan {
-  monthly('monthly', r'$2.99', 'per_month'),
-  yearly('yearly', r'$14.99', 'per_year'),
-  lifetime('lifetime', r'$24.99', 'one_time');
-
-  const PremiumPlan(this.id, this.price, this.periodKey);
-
-  /// Also the suffix of the plan's name key (`plan_<id>`).
-  final String id;
-  final String price;
-  final String periodKey;
-
-  /// The one we want people to pick.
-  bool get isBestValue => this == yearly;
-}
+/// MOCK: the price is a placeholder and nothing can be bought yet.
+// TODO(iap): replace with the product from in_app_purchase, showing the
+// store's localized price and using the real product id.
+const premiumPrice = r'$3.99';
 
 const _gold = [Color(0xFFFFE08A), Color(0xFFFFA83D)];
+const _pink = Color(0xFFF06FB5);
 
-class PremiumScreen extends StatefulWidget {
+class PremiumScreen extends StatelessWidget {
   const PremiumScreen({super.key});
 
-  @override
-  State<PremiumScreen> createState() => _PremiumScreenState();
-}
-
-class _PremiumScreenState extends State<PremiumScreen> {
-  PremiumPlan _selected = PremiumPlan.yearly;
-
-  void _unavailable() {
+  void _unavailable(BuildContext context) {
     final s = Strings.of(context);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -61,11 +41,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
       body: GradientBackground(
         dark: true,
         // The scroll view reaches the screen edge so the blob's glow is not
-        // clipped; the top inset is padding inside it.
+        // clipped; the top inset is padding inside it. The button stays
+        // pinned below it so it is always visible.
         child: SafeArea(
           top: false,
-          // The scroll view reaches the screen edge (see above); the button
-          // stays pinned below it so it is always visible.
           child: Column(
             children: [
               Expanded(
@@ -79,8 +58,8 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   child: Column(
                     children: [
                       GlassBlob(
-                        width: 112,
-                        height: 104,
+                        width: 140,
+                        height: 128,
                         fill: const [Color(0xFFFFB35C), Color(0xFF8A4FD0)],
                         glow: const Color(0xFFFFA83D),
                         child: ShaderMask(
@@ -92,7 +71,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ).createShader(rect),
                           child: const Icon(
                             Icons.workspace_premium,
-                            size: 64,
+                            size: 80,
                             color: Colors.white,
                           ),
                         ),
@@ -108,7 +87,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                         child: Text(
                           s['premium_title'],
                           style: const TextStyle(
-                            fontSize: 34,
+                            fontSize: 38,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
@@ -121,34 +100,29 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           color: Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       GlassCard(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
-                          vertical: 14,
+                          vertical: 18,
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _Benefit(s['benefit_no_ads']),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
                             _Benefit(s['benefit_packs']),
-                            const SizedBox(height: 12),
-                            _Benefit(s['benefit_support']),
+                            const SizedBox(height: 14),
+                            _Benefit(s['benefit_once']),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      for (final plan in PremiumPlan.values) ...[
-                        _PlanCard(
-                          key: ValueKey('plan_${plan.id}'),
-                          plan: plan,
-                          selected: plan == _selected,
-                          strings: s,
-                          onTap: () => setState(() => _selected = plan),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
+                      const SizedBox(height: 22),
+                      _OfferCard(
+                        title: s['offer_title'],
+                        caption: s['offer_caption'],
+                        price: premiumPrice,
+                      ),
                     ],
                   ),
                 ),
@@ -159,12 +133,12 @@ class _PremiumScreenState extends State<PremiumScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     GradientButton(
-                      label: s['continue'],
+                      label: s['unlock'],
                       height: 60,
-                      onPressed: _unavailable,
+                      onPressed: () => _unavailable(context),
                     ),
                     TextButton(
-                      onPressed: _unavailable,
+                      onPressed: () => _unavailable(context),
                       child: Text(
                         s['restore'],
                         style: TextStyle(
@@ -208,184 +182,84 @@ class _Benefit extends StatelessWidget {
   }
 }
 
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({
-    super.key,
-    required this.plan,
-    required this.selected,
-    required this.strings,
-    required this.onTap,
+/// The one thing on offer, with its price. Not selectable: there is nothing to
+/// choose between.
+class _OfferCard extends StatelessWidget {
+  const _OfferCard({
+    required this.title,
+    required this.caption,
+    required this.price,
   });
 
-  final PremiumPlan plan;
-  final bool selected;
-  final Strings strings;
-  final VoidCallback onTap;
+  final String title;
+  final String caption;
+  final String price;
 
-  static const _pink = Color(0xFFF06FB5);
-  static const _selectedBase = Color(0xFF1E1334);
-
-  @override
-  Widget build(BuildContext context) {
-    final s = strings;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: Semantics(
-            button: true,
-            selected: selected,
-            child: GlassCard(
-              radius: 22,
-              strokeWidth: selected ? 2 : GlassCard.borderWidth,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              // Opaque on purpose: GlassCard paints its border gradient as a
-              // solid layer under the fill, which shows through any
-              // translucent fill. The tint is blended onto the dark base here.
-              gradient: selected
-                  ? LinearGradient(
-                      colors: [
-                        Color.alphaBlend(
-                          _pink.withValues(alpha: 0.24),
-                          _selectedBase,
-                        ),
-                        Color.alphaBlend(
-                          const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                          _selectedBase,
-                        ),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : null,
-              borderGradient: selected
-                  ? LinearGradient(
-                      colors: [
-                        _pink.withValues(alpha: 0.95),
-                        const Color(0xFF8B5CF6).withValues(alpha: 0.7),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    )
-                  : LinearGradient(
-                      colors: [
-                        Colors.white.withValues(alpha: 0.38),
-                        Colors.white.withValues(alpha: 0.07),
-                        Colors.white.withValues(alpha: 0.2),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-              child: Row(
-                children: [
-                  _Radio(selected: selected),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          s['plan_${plan.id}'],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (plan.isBestValue)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              s['save_percent'],
-                              style: const TextStyle(
-                                color: Color(0xFFFFC857),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        plan.price,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Text(
-                        s[plan.periodKey],
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.65),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (plan.isBestValue)
-          Positioned(
-            top: -11,
-            right: 18,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                gradient: brandGradient,
-              ),
-              child: Text(
-                s['best_value'],
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Round radio indicator; filled with a check when selected.
-class _Radio extends StatelessWidget {
-  const _Radio({required this.selected});
-
-  final bool selected;
+  // The tint is blended onto this base by hand (opaque fill): GlassCard
+  // paints its border gradient as a solid layer under the fill, which would
+  // show through a translucent one.
+  static const _base = Color(0xFF1E1334);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 26,
-      height: 26,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: selected ? brandGradient : null,
-        border: selected
-            ? null
-            : Border.all(
-                color: Colors.white.withValues(alpha: 0.4),
-                width: 1.6,
-              ),
+    return GlassCard(
+      radius: 22,
+      strokeWidth: 2,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      gradient: LinearGradient(
+        colors: [
+          Color.alphaBlend(_pink.withValues(alpha: 0.24), _base),
+          Color.alphaBlend(
+            const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+            _base,
+          ),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
-      child: selected
-          ? const Icon(
-              Icons.check_rounded,
-              key: Key('plan_check'),
-              size: 18,
-              color: Colors.white,
-            )
-          : null,
+      borderGradient: LinearGradient(
+        colors: [
+          _pink.withValues(alpha: 0.95),
+          const Color(0xFF8B5CF6).withValues(alpha: 0.7),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.all_inclusive_rounded, size: 32, color: _gold1),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  caption,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            price,
+            key: const Key('premium_price'),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
     );
   }
 }
+
+const _gold1 = Color(0xFFFFC857);

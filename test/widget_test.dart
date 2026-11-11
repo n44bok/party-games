@@ -370,26 +370,7 @@ void main() {
   });
 
   group('premium', () {
-    Finder check(String plan) => find.descendant(
-      of: find.byKey(ValueKey('plan_$plan')),
-      matching: find.byKey(const Key('plan_check')),
-    );
-
-    testWidgets('opens from the header and lists the benefits', (tester) async {
-      phone(tester);
-      await tester.pumpWidget(app());
-      await tester.tap(find.byTooltip('Premium'));
-      await settle(tester);
-
-      expect(find.text('Premium'), findsWidgets);
-      expect(find.text('No ads'), findsOneWidget);
-      for (final plan in ['Monthly', 'Yearly', 'Lifetime']) {
-        expect(find.text(plan), findsOneWidget);
-      }
-      expect(find.text('Best value'), findsOneWidget);
-    });
-
-    testWidgets('yearly is preselected and plans can be switched', (
+    testWidgets('opens from the header with a single one-time offer', (
       tester,
     ) async {
       phone(tester);
@@ -397,19 +378,23 @@ void main() {
       await tester.tap(find.byTooltip('Premium'));
       await settle(tester);
 
-      expect(check('yearly'), findsOneWidget);
-      expect(check('monthly'), findsNothing);
+      expect(find.text('Premium'), findsWidgets);
+      expect(find.text('No ads, forever'), findsOneWidget);
+      expect(find.text('One payment, no subscription'), findsOneWidget);
+      expect(find.text('Premium for life'), findsOneWidget);
+      expect(find.text('One-time payment'), findsOneWidget);
+      expect(find.byKey(const Key('premium_price')), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('plan_monthly')));
-      await tester.pump();
-      expect(check('monthly'), findsOneWidget);
-      expect(check('yearly'), findsNothing);
+      // The old subscription plans are gone.
+      for (final gone in ['Monthly', 'Yearly', 'Lifetime']) {
+        expect(find.text(gone), findsNothing);
+      }
     });
 
     // Nothing can be bought yet: both actions only tell the user so. (The
     // messenger shows a snack bar on every Scaffold, including the one below,
     // hence findsWidgets.)
-    for (final action in ['Continue', 'Restore purchases']) {
+    for (final action in ['Unlock Premium', 'Restore purchases']) {
       testWidgets('"$action" says purchases are not available yet', (
         tester,
       ) async {
