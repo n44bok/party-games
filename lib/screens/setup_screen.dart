@@ -90,7 +90,12 @@ class _SetupScreenState extends State<SetupScreen> {
       body: GradientBackground(
         // The illustration is part of the scrolling page, anchored under the
         // button; the name fields can make the page taller than the screen.
+        // No SafeArea at the top: the scroll view must reach the screen edge,
+        // otherwise it clips the blob's glow along the status-bar line. The
+        // top inset (which already includes the app bar, because the body extends
+        // behind it) is added as padding inside instead.
         child: SafeArea(
+          top: false,
           bottom: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -113,7 +118,7 @@ class _SetupScreenState extends State<SetupScreen> {
                         // Leave room so the button sits above the picture.
                         padding: EdgeInsets.fromLTRB(
                           20,
-                          0,
+                          MediaQuery.paddingOf(context).top,
                           20,
                           backdropHeight * 0.6,
                         ),
