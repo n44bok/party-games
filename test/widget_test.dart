@@ -249,4 +249,23 @@ void main() {
     await loaded(tester);
     expect(inGame('Player 1'), findsOneWidget);
   });
+
+  testWidgets('help button shows the rules in a popover', (tester) async {
+    phone(tester);
+    await tester.pumpWidget(app());
+
+    // One help button per game card.
+    expect(find.byTooltip('Rules'), findsNWidgets(6));
+
+    // The first card is Truth or Dare; the help button must not open the game.
+    await tester.tap(find.byTooltip('Rules').first);
+    await settle(tester);
+    expect(find.textContaining('Change Type'), findsOneWidget);
+    expect(find.text('Start Game'), findsNothing);
+
+    // Tapping outside closes it.
+    await tester.tapAt(const Offset(5, 400));
+    await settle(tester);
+    expect(find.textContaining('Change Type'), findsNothing);
+  });
 }

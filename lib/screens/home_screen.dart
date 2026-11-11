@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/strings.dart';
 import '../models/game_mode.dart';
 import '../widgets/glass.dart';
+import '../widgets/rules_popover.dart';
 import '../widgets/gradient_background.dart';
 import 'setup_screen.dart';
 
@@ -187,6 +188,52 @@ class _Cups extends StatelessWidget {
   }
 }
 
+/// Small "?" in a circle; opens a popover with the game's rules.
+class _HelpButton extends StatelessWidget {
+  const _HelpButton({required this.mode});
+
+  final GameMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Strings.of(context);
+    return Tooltip(
+      message: s['rules'],
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          // Anchor the popover to this exact button.
+          final box = context.findRenderObject()! as RenderBox;
+          showRulesPopover(
+            context,
+            anchor: box.localToGlobal(Offset.zero) & box.size,
+            title: s.modeName(mode),
+            body: s['${mode.id}_rules'],
+          );
+        },
+        // A roomy touch target around a small visible circle.
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+            ),
+            child: Icon(
+              Icons.question_mark_rounded,
+              size: 15,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ModeCard extends StatelessWidget {
   const _ModeCard({
     required this.mode,
@@ -291,6 +338,8 @@ class _ModeCard extends StatelessWidget {
                 type: MaterialType.transparency,
                 child: InkWell(onTap: onTap),
               ),
+              // Sits above the tap area so it does not open the game.
+              Positioned(top: 2, right: 2, child: _HelpButton(mode: mode)),
             ],
           ),
         ),
