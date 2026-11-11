@@ -33,13 +33,13 @@ enum GameMode {
     Color(0xFFD4604E),
     Color(0xFF7A2B45),
   ]),
-  wouldYouRather('would_you_rather', Icons.style_rounded, [
-    Color(0xFF2BA39B),
-    Color(0xFF14505E),
-  ]),
   randomChallenge('random_challenge', Icons.casino_rounded, [
     Color(0xFFE0A15C),
     Color(0xFF8C5A3C),
+  ]),
+  wouldYouRather('would_you_rather', Icons.style_rounded, [
+    Color(0xFF2BA39B),
+    Color(0xFF14505E),
   ]);
 
   const GameMode(this.id, this.icon, this.colors);
