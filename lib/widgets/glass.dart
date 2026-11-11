@@ -7,12 +7,11 @@ const brandGradient = LinearGradient(
   end: Alignment.centerRight,
 );
 
-/// Primary button fill: violet, magenta, then coral in the bottom-right.
+/// Primary button fill: violet to pink, left to right.
 const primaryGradient = LinearGradient(
-  colors: [Color(0xFF7B5CF6), Color(0xFFC96CE0), Color(0xFFF4797F)],
-  stops: [0.0, 0.6, 1.0],
-  begin: Alignment(-1, -0.4),
-  end: Alignment(1, 0.7),
+  colors: [Color(0xFF7C5CFA), Color(0xFFB65CF0), Color(0xFFF06FB5)],
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
 );
 
 /// Hairline border: bright at the top-left, fading, with a pink return.
@@ -127,8 +126,7 @@ class GlassIconButton extends StatelessWidget {
   }
 }
 
-/// Full-width pill button: diagonal violet-to-coral fill, glossy top edge and
-/// a bright gradient border, with a soft glow around it.
+/// Full-width pill button with a smooth violet-to-pink fill and a soft glow.
 class GradientButton extends StatelessWidget {
   const GradientButton({
     super.key,
@@ -147,86 +145,49 @@ class GradientButton extends StatelessWidget {
   final double height;
   final Gradient gradient;
 
-  static const _border = 1.4;
-
   @override
   Widget build(BuildContext context) {
-    final radius = height / 2;
-    // The glow sits on the outermost box: Ink/clips would cut a shadow into a
-    // hard strip.
+    final radius = BorderRadius.circular(height / 2);
+    // Fill and glow share one box, so the shadow is not clipped (Ink would
+    // clip it). The Material above only hosts the tap ripple.
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        gradient: const LinearGradient(
-          colors: [Color(0x80FFFFFF), Color(0x33F4A0D0), Color(0x2EFFFFFF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: gradient,
+        borderRadius: radius,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFC96CE0).withValues(alpha: 0.4),
-            blurRadius: 20,
-            spreadRadius: -2,
+            color: const Color(0xFFB65CF0).withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(_border),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius - _border),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onPressed,
           child: SizedBox(
-            height: height - 2 * _border,
-            child: Stack(
-              fit: StackFit.expand,
+            height: height,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
-                // Glossy highlight on the top half.
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: FractionallySizedBox(
-                    heightFactor: 0.5,
-                    widthFactor: 1,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.white.withValues(alpha: 0.22),
-                            Colors.white.withValues(alpha: 0),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                    ),
+                if (icon != null) ...[
+                  Icon(icon, color: Colors.white),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                Material(
-                  type: MaterialType.transparency,
-                  child: InkWell(
-                    onTap: onPressed,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (icon != null) ...[
-                          Icon(icon, color: Colors.white),
-                          const SizedBox(width: 8),
-                        ],
-                        Text(
-                          label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (trailingIcon != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(trailingIcon, color: Colors.white),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
+                if (trailingIcon != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(trailingIcon, color: Colors.white),
+                ],
               ],
             ),
           ),

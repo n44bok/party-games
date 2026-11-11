@@ -240,9 +240,9 @@ class _PromptCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const style = TextStyle(
-      fontSize: 27,
-      height: 1.28,
-      fontWeight: FontWeight.w600,
+      fontSize: 32,
+      height: 1.25,
+      fontWeight: FontWeight.w800,
       color: Colors.white,
     );
     final kind = prompt.kind;
@@ -305,53 +305,51 @@ class _PromptCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  LayoutBuilder(
-                    builder: (context, constraints) => SingleChildScrollView(
-                      padding: const EdgeInsets.all(28),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight - 56,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          // Without a Truth/Dare badge the text sits in the
-                          // middle of the card.
-                          mainAxisAlignment: kind == null
-                              ? MainAxisAlignment.center
-                              : MainAxisAlignment.start,
-                          children: [
-                            if (kind != null) ...[
-                              _KindBadge(kind: kind, label: strings[kind]),
-                              const SizedBox(height: 32),
-                            ],
-                            Text(
-                              prompt.text,
-                              textAlign: TextAlign.center,
-                              style: style,
-                            ),
-                            if (prompt.optionB != null) ...[
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 20,
-                                ),
-                                child: Text(
-                                  strings['or'],
-                                  style: const TextStyle(
-                                    color: _accent,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
+                  Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      children: [
+                        // The badge stays at the top; the text is centered
+                        // vertically in the space that remains.
+                        if (kind != null)
+                          _KindBadge(kind: kind, label: strings[kind]),
+                        Expanded(
+                          child: Center(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    prompt.text,
+                                    textAlign: TextAlign.center,
+                                    style: style,
                                   ),
-                                ),
+                                  if (prompt.optionB != null) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 20,
+                                      ),
+                                      child: Text(
+                                        strings['or'],
+                                        style: const TextStyle(
+                                          color: _accent,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      prompt.optionB!,
+                                      textAlign: TextAlign.center,
+                                      style: style,
+                                    ),
+                                  ],
+                                ],
                               ),
-                              Text(
-                                prompt.optionB!,
-                                textAlign: TextAlign.center,
-                                style: style,
-                              ),
-                            ],
-                          ],
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
