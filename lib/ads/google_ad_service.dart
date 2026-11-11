@@ -28,8 +28,8 @@ class AdUnits {
   };
 }
 
-/// AdMob ads: a banner on the home screen and a full-screen ad every few
-/// rounds. Nothing is shown once [SettingsController.adsRemoved] is set.
+/// AdMob ads: a banner on the home screen and one full-screen ad per game,
+/// after a few rounds. Nothing is shown once [SettingsController.adsRemoved] is set.
 // TODO(ads): rewarded ads to unlock premium categories.
 // TODO(ads): ask for consent (UMP, and ATT on iOS) before serving real ads.
 class GoogleAdService implements AdService {
@@ -80,17 +80,25 @@ class GoogleAdService implements AdService {
   }
 
   @override
+  void onGameStarted() {
+    _pacer.reset();
+    _loadInterstitial(); // have one ready by the time round 6 comes
+  }
+
+  @override
   void onRoundFinished() {
     if (!isSupported || _settings.adsRemoved) return;
     if (!_pacer.onRound()) return;
 
     final ad = _interstitial;
     if (ad == null) {
-      // Not ready: skip this one rather than make the player wait.
+      // Not ready: never make the player wait. The ad stays due, so it can
+      // still appear on a later round of this game once it has loaded.
       _loadInterstitial();
       return;
     }
     _interstitial = null;
+    _pacer.markShown();
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();

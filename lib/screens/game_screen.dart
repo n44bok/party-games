@@ -37,6 +37,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   List<Prompt>? _deck;
   Object? _error;
+  bool _adGameStarted = false;
   String? _loadedLang; // language the current deck was loaded in
   int _index = 0;
   int _turn = 0; // number of prompts shown so far; drives current player
@@ -45,6 +46,11 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (!_adGameStarted) {
+      // A new game: its ad budget (one full-screen ad) starts fresh.
+      _adGameStarted = true;
+      AdScope.of(context).onGameStarted();
+    }
     // Also reload when the language is switched from the settings screen.
     if (Strings.of(context).code != _loadedLang) _load();
   }

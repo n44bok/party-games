@@ -7,6 +7,10 @@ abstract class AdService {
   /// A banner, or an empty widget when there is no ad to show.
   Widget buildBanner();
 
+  /// Call when a new game starts (a game screen opens). Resets the per-game
+  /// ad budget.
+  void onGameStarted();
+
   /// Call when a round has been played. May show a full-screen ad; never
   /// blocks the game, and does nothing if no ad is ready.
   void onRoundFinished();
@@ -19,23 +23,39 @@ class NoAdService implements AdService {
   Widget buildBanner() => const SizedBox.shrink();
 
   @override
+  void onGameStarted() {}
+
+  @override
   void onRoundFinished() {}
 }
 
-/// Decides when a full-screen ad is due: once every [every] rounds.
+/// Decides when a full-screen ad is due: at most once per game, after
+/// [after] rounds.
 ///
-/// Kept separate from the ad SDK so the frequency rule can be tested, and so
-/// that it can be tuned in one place.
+/// Kept separate from the ad SDK so the rule can be tested and tuned in one
+/// place. An ad that is due stays due until [markShown] is called, so if it
+/// was not loaded yet at round [after] it can still appear a round or two
+/// later, but never more than once in the same game.
 class InterstitialPacer {
-  InterstitialPacer({this.every = 6}) : assert(every > 0);
+  InterstitialPacer({this.after = 6}) : assert(after > 0);
 
-  final int every;
+  final int after;
   int _rounds = 0;
+  bool _shown = false;
 
-  /// Registers a finished round; returns true if an ad is due now.
+  /// Registers a finished round; returns true while an ad is due.
   bool onRound() {
     _rounds++;
-    return _rounds % every == 0;
+    return !_shown && _rounds >= after;
+  }
+
+  /// Records that the ad was actually shown: no more in this game.
+  void markShown() => _shown = true;
+
+  /// A new game begins: start counting again.
+  void reset() {
+    _rounds = 0;
+    _shown = false;
   }
 }
 

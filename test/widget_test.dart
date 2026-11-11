@@ -39,7 +39,11 @@ class RecordingRepository extends FakeRepository {
 
 /// Counts rounds and shows a recognizable banner.
 class FakeAdService implements AdService {
+  int games = 0;
   int rounds = 0;
+
+  @override
+  void onGameStarted() => games++;
 
   @override
   Widget buildBanner() => const SizedBox(key: Key('fake_banner'), height: 50);
@@ -425,24 +429,47 @@ void main() {
   });
 
   group('ads', () {
-    test('a full-screen ad is due every N rounds', () {
-      final pacer = InterstitialPacer(every: 3);
-      expect(
-        [for (var i = 0; i < 7; i++) pacer.onRound()],
-        [false, false, true, false, false, true, false],
-      );
+    test('an ad is due from round N on, and only until it was shown', () {
+      final pacer = InterstitialPacer(after: 3);
+      expect(pacer.onRound(), isFalse);
+      expect(pacer.onRound(), isFalse);
+      expect(pacer.onRound(), isTrue); // round 3: due
+      pacer.markShown();
+      // Nothing more in this game, however long it goes on.
+      expect([
+        for (var i = 0; i < 20; i++) pacer.onRound(),
+      ], everyElement(false));
     });
 
-    test('the default is one ad every 6 rounds', () {
+    test('the default is one ad, at round 6', () {
       final pacer = InterstitialPacer();
       final due = [for (var i = 1; i <= 12; i++) pacer.onRound()];
-      expect(
-        [
-          for (var i = 0; i < 12; i++)
-            if (due[i]) i + 1,
-        ],
-        [6, 12],
-      );
+      expect(due.indexOf(true) + 1, 6);
+      pacer.markShown();
+      expect([
+        for (var i = 0; i < 12; i++) pacer.onRound(),
+      ], everyElement(false));
+    });
+
+    test('an ad that was not ready stays due for the next rounds', () {
+      final pacer = InterstitialPacer(after: 2);
+      expect(pacer.onRound(), isFalse);
+      expect(pacer.onRound(), isTrue); // due, but suppose it was not loaded
+      expect(pacer.onRound(), isTrue); // still due next round
+      pacer.markShown();
+      expect(pacer.onRound(), isFalse);
+    });
+
+    test('a new game gets a fresh budget', () {
+      final pacer = InterstitialPacer(after: 2);
+      pacer.onRound();
+      expect(pacer.onRound(), isTrue);
+      pacer.markShown();
+      expect(pacer.onRound(), isFalse);
+
+      pacer.reset(); // another game starts
+      expect(pacer.onRound(), isFalse);
+      expect(pacer.onRound(), isTrue); // again after 2 rounds
     });
 
     test('"ads removed" is saved and restored', () async {
@@ -484,6 +511,38 @@ void main() {
         await settle(tester);
       }
       expect(ads.rounds, 3);
+    });
+
+    testWidgets('each game opened reports a start (a fresh ad budget)', (
+      tester,
+    ) async {
+      phone(tester);
+      final ads = FakeAdService();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), ads: ads),
+      );
+      expect(ads.games, 0); // the home screen is not a game
+
+      // First game.
+      await tester.tap(find.text('Truth or Dare'));
+      await settle(tester);
+      await startGame(tester);
+      await loaded(tester);
+      expect(ads.games, 1);
+      await tester.tap(find.text('Next'));
+      await settle(tester);
+      expect(ads.games, 1); // rounds do not start a new game
+
+      // Back to the home screen (past the game and setup screens), then
+      // another game.
+      Navigator.of(tester.element(find.byType(GameScreen)))
+          .popUntil((route) => route.isFirst);
+      await settle(tester);
+      await tester.tap(find.text('Would You Rather'));
+      await settle(tester);
+      await startGame(tester);
+      await loaded(tester);
+      expect(ads.games, 2);
     });
   });
 }
