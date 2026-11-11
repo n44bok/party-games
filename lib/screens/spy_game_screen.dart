@@ -31,7 +31,7 @@ class SpyGameScreen extends StatefulWidget {
     required this.playerNames,
     required this.spies,
     required this.duration,
-    this.category = SpyCategory.places,
+    this.categories = const {SpyCategory.places},
     this.ownWord,
     this.timeWarning = true,
     this.repository,
@@ -45,14 +45,14 @@ class SpyGameScreen extends StatefulWidget {
   /// How long the discussion lasts.
   final Duration duration;
 
-  /// The theme of the secret words.
-  final SpyCategory category;
+  /// The themes the secret word is drawn from (any number of them).
+  final Set<SpyCategory> categories;
 
   /// Warn the players 30 seconds before the time runs out (a signal, an amber
   /// dial and, if they are switched on, vibration and sound).
   final bool timeWarning;
 
-  /// The players' own word; the one used when [category] is
+  /// The players' own word; it joins the pool when [categories] contains
   /// [SpyCategory.single].
   final String? ownWord;
   final ContentRepository? repository;
@@ -100,12 +100,17 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
 
   Future<void> _load() async {
     final s = Strings.of(context);
-    if (widget.category.isSingle) {
-      // The players' own word: nothing to load. Start in a microtask rather
-      // than from inside didChangeDependencies.
+    final needsFiles = widget.categories.any((c) => !c.isSingle);
+    if (!needsFiles) {
+      // Only the players' own word: nothing to load. Start in a microtask
+      // rather than from inside didChangeDependencies.
       Future.microtask(() {
         if (!mounted) return;
-        _words = [widget.ownWord!];
+        _words = spyWordPool(
+          categories: widget.categories,
+          byCategory: const {},
+          ownWord: widget.ownWord,
+        );
         _newRound();
       });
       return;
@@ -113,9 +118,13 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
     final repo = widget.repository ?? ContentScope.of(context);
     try {
       final byCategory = await repo.loadSpyWords(s.code);
-      final words = byCategory[widget.category.id];
-      if (words == null || words.isEmpty) {
-        throw StateError('No Spy words for ${widget.category.id}');
+      final words = spyWordPool(
+        categories: widget.categories,
+        byCategory: byCategory,
+        ownWord: widget.ownWord,
+      );
+      if (words.isEmpty) {
+        throw StateError('No Spy words for ${widget.categories}');
       }
       if (!mounted) return;
       _words = words;

@@ -63,6 +63,16 @@ enum SpyCategory {
   objects('objects'),
   clothes('clothes'),
   nature('nature'),
+  music('music'),
+  school('school'),
+  body('body'),
+  fantasy('fantasy'),
+  hobbies('hobbies'),
+  kitchen('kitchen'),
+  holidays('holidays'),
+  city('city'),
+  space('space'),
+  sea('sea'),
   single('single');
 
   const SpyCategory(this.id);
@@ -80,4 +90,23 @@ enum SpyCategory {
     for (final c in values)
       if (!c.isSingle) c,
   ];
+}
+
+/// The words a round may be drawn from: those of the chosen [categories] (read
+/// from [byCategory]) and, if [SpyCategory.single] is chosen, the players'
+/// [ownWord]. Repeats (a word can belong to several categories) are removed.
+List<String> spyWordPool({
+  required Set<SpyCategory> categories,
+  required Map<String, List<String>> byCategory,
+  String? ownWord,
+}) {
+  final pool = <String>{}; // keeps insertion order
+  for (final category in SpyCategory.values) {
+    if (!categories.contains(category) || category.isSingle) continue;
+    pool.addAll(byCategory[category.id] ?? const []);
+  }
+  if (categories.contains(SpyCategory.single) && ownWord != null) {
+    pool.add(ownWord);
+  }
+  return pool.toList();
 }

@@ -31,6 +31,16 @@ class FakeRepository extends ContentRepository {
     'objects': ['Lamp', 'Key', 'Pen'],
     'clothes': ['Hat', 'Scarf', 'Belt'],
     'nature': ['Lake', 'Cave', 'Snow'],
+    'music': ['Piano', 'Drums', 'Harp'],
+    'school': ['Desk', 'Exam', 'Chalk'],
+    'body': ['Elbow', 'Knee', 'Neck'],
+    'fantasy': ['Dragon', 'Elf', 'Witch'],
+    'hobbies': ['Knitting', 'Chess club', 'Pottery'],
+    'kitchen': ['Whisk', 'Kettle', 'Oven'],
+    'holidays': ['Easter', 'Picnic', 'Parade'],
+    'city': ['Bridge', 'Fountain', 'Alley'],
+    'space': ['Comet', 'Orbit', 'Nebula'],
+    'sea': ['Anchor', 'Coral', 'Tide'],
   };
 
   /// The default category's words.
@@ -136,7 +146,7 @@ Finder inGame(String text) =>
 /// A window tall enough for the whole Spy setup page, so no scrolling (which
 /// can leave a button under the transparent app bar) is needed.
 void spyPhone(WidgetTester tester) {
-  tester.view.physicalSize = const Size(1170, 5400);
+  tester.view.physicalSize = const Size(1170, 7500);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
 }
@@ -775,6 +785,78 @@ void main() {
       expect(SpyRound.maxSpiesFor(12), 5);
     });
 
+    group('word pool', () {
+      const byCategory = {
+        'places': ['Airport', 'Beach'],
+        'food': ['Pizza', 'Beach'], // "Beach" is in two categories
+        'space': ['Comet'],
+      };
+
+      test('is the words of every chosen category', () {
+        expect(
+          spyWordPool(
+            categories: {SpyCategory.places, SpyCategory.space},
+            byCategory: byCategory,
+          ),
+          unorderedEquals(['Airport', 'Beach', 'Comet']),
+        );
+      });
+
+      test('has no repeats when categories share a word', () {
+        final pool = spyWordPool(
+          categories: {SpyCategory.places, SpyCategory.food},
+          byCategory: byCategory,
+        );
+        expect(pool.length, 3);
+        expect(pool.toSet(), {'Airport', 'Beach', 'Pizza'});
+      });
+
+      test('contains nothing from categories that are not chosen', () {
+        final pool = spyWordPool(
+          categories: {SpyCategory.food},
+          byCategory: byCategory,
+        );
+        expect(pool, isNot(contains('Airport')));
+        expect(pool, isNot(contains('Comet')));
+      });
+
+      test('adds the players\' own word when "My word" is chosen', () {
+        final pool = spyWordPool(
+          categories: {SpyCategory.space, SpyCategory.single},
+          byCategory: byCategory,
+          ownWord: 'Mars rover',
+        );
+        expect(pool, unorderedEquals(['Comet', 'Mars rover']));
+      });
+
+      test('"My word" alone is exactly that one word', () {
+        expect(
+          spyWordPool(
+            categories: {SpyCategory.single},
+            byCategory: const {},
+            ownWord: 'Mars rover',
+          ),
+          ['Mars rover'],
+        );
+      });
+
+      test('ignores the own word when "My word" is not chosen', () {
+        final pool = spyWordPool(
+          categories: {SpyCategory.space},
+          byCategory: byCategory,
+          ownWord: 'Mars rover',
+        );
+        expect(pool, ['Comet']);
+      });
+
+      test('copes with a category missing from the data', () {
+        expect(
+          spyWordPool(categories: {SpyCategory.sea}, byCategory: byCategory),
+          isEmpty,
+        );
+      });
+    });
+
     test('a round has the requested number of distinct spies', () {
       for (var seed = 0; seed < 50; seed++) {
         final round = SpyRound.start(
@@ -925,33 +1007,8 @@ void main() {
       expect(enabled(tester, pills('spyCountPills', '2')), isFalse);
     });
 
-    testWidgets('ten word categories plus your own, Places by default', (
-      tester,
-    ) async {
-      await openSpy(tester);
-      for (final label in [
-        'Places',
-        'Food',
-        'Animals',
-        'Jobs',
-        'Sports',
-        'Countries',
-        'Transport',
-        'Objects',
-        'Clothes',
-        'Nature',
-        'My word',
-      ]) {
-        expect(pills('spyCategoryPills', label), findsOneWidget);
-      }
-      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
-
-      await tapPill(tester, pills('spyCategoryPills', 'Food'));
-      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
-      expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
-    });
-
-    for (final entry in {
+    /// Pill label -> category id, for every ready-made category.
+    const categoryLabels = {
       'Places': 'places',
       'Food': 'food',
       'Animals': 'animals',
@@ -962,12 +1019,77 @@ void main() {
       'Objects': 'objects',
       'Clothes': 'clothes',
       'Nature': 'nature',
-    }.entries) {
+      'Music': 'music',
+      'School': 'school',
+      'Body': 'body',
+      'Fantasy': 'fantasy',
+      'Hobbies': 'hobbies',
+      'Kitchen': 'kitchen',
+      'Holidays': 'holidays',
+      'City': 'city',
+      'Space': 'space',
+      'Sea': 'sea',
+    };
+
+    /// Turns on [label] and turns Places (on by default) off, so that only
+    /// this category is chosen.
+    Future<void> chooseOnly(WidgetTester tester, String label) async {
+      if (label != 'Places') {
+        await tapPill(tester, pills('spyCategoryPills', label));
+        await tapPill(tester, pills('spyCategoryPills', 'Places'));
+      }
+    }
+
+    testWidgets('twenty word categories plus your own, Places by default', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      for (final label in [...categoryLabels.keys, 'My word']) {
+        expect(pills('spyCategoryPills', label), findsOneWidget);
+      }
+      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
+      expect(selected(tester, pills('spyCategoryPills', 'Food')), isFalse);
+    });
+
+    testWidgets('categories are a multi-select', (tester) async {
+      await openSpy(tester);
+
+      // Tapping another one adds it; the first stays chosen.
+      await tapPill(tester, pills('spyCategoryPills', 'Food'));
+      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
+      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
+      await tapPill(tester, pills('spyCategoryPills', 'Sea'));
+      expect(selected(tester, pills('spyCategoryPills', 'Sea')), isTrue);
+
+      // Tapping a chosen one removes it.
+      await tapPill(tester, pills('spyCategoryPills', 'Places'));
+      expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
+      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
+      expect(selected(tester, pills('spyCategoryPills', 'Sea')), isTrue);
+    });
+
+    testWidgets('the last chosen category cannot be switched off', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      // Only Places is on: tapping it does nothing.
+      await tapPill(tester, pills('spyCategoryPills', 'Places'));
+      expect(selected(tester, pills('spyCategoryPills', 'Places')), isTrue);
+
+      // Two on: one can go, the remaining one then stays.
+      await tapPill(tester, pills('spyCategoryPills', 'Food'));
+      await tapPill(tester, pills('spyCategoryPills', 'Places'));
+      expect(selected(tester, pills('spyCategoryPills', 'Places')), isFalse);
+      await tapPill(tester, pills('spyCategoryPills', 'Food'));
+      expect(selected(tester, pills('spyCategoryPills', 'Food')), isTrue);
+    });
+
+    for (final entry in categoryLabels.entries) {
       testWidgets('the "${entry.key}" category uses its own words', (
         tester,
       ) async {
         await openSpy(tester);
-        await tapPill(tester, pills('spyCategoryPills', entry.key));
+        await chooseOnly(tester, entry.key);
         await startGame(tester);
         await settle(tester);
         await settle(tester);
@@ -989,6 +1111,44 @@ void main() {
         expect(expected, contains(seen.single));
       });
     }
+
+    testWidgets('with several categories the word comes from any of them', (
+      tester,
+    ) async {
+      await openSpy(tester);
+      await tapPill(tester, pills('spyCategoryPills', 'Food'));
+      await tapPill(tester, pills('spyCategoryPills', 'Space'));
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+
+      final union = {
+        ...FakeRepository.words['places']!,
+        ...FakeRepository.words['food']!,
+        ...FakeRepository.words['space']!,
+      };
+      // Several rounds: every word that turns up is from one of the three.
+      for (var round = 0; round < 6; round++) {
+        final seen = <String>{};
+        for (var i = 0; i < 3; i++) {
+          await tester.tap(find.text('Show my role'));
+          await settle(tester);
+          if (find.byKey(const Key('spyWord')).evaluate().isNotEmpty) {
+            seen.add(textOf(tester, 'spyWord'));
+          }
+          await tester.tap(
+            find.text(i == 2 ? 'Hide and start' : 'Hide and pass on'),
+          );
+          await settle(tester);
+        }
+        expect(seen.length, 1);
+        expect(union, contains(seen.single));
+        await tester.tap(find.text('Reveal the spy'));
+        await settle(tester);
+        await tester.tap(find.text('Play again'));
+        await settle(tester);
+      }
+    });
 
     testWidgets('timer length can be chosen, 8 minutes by default', (
       tester,
@@ -1379,7 +1539,7 @@ void main() {
       return settings;
     }
 
-    testWidgets('a field appears for it, and for nothing else', (tester) async {
+    testWidgets('its field appears as soon as it is selected', (tester) async {
       await openSetup(tester);
       expect(find.byKey(const Key('singleWordField')), findsNothing);
 
@@ -1389,7 +1549,13 @@ void main() {
       // No explanatory note under the field.
       expect(find.text('Used only for this game, not saved'), findsNothing);
 
+      // Other categories can be added; the field stays while "My word" is on.
       await tester.tap(categoryPill('Food'));
+      await tester.pump();
+      expect(find.byKey(const Key('singleWordField')), findsOneWidget);
+
+      // Switching "My word" off takes the field away again.
+      await tester.tap(categoryPill('My word'));
       await tester.pump();
       expect(find.byKey(const Key('singleWordField')), findsNothing);
     });
@@ -1414,6 +1580,8 @@ void main() {
     testWidgets('everyone but the spy sees exactly that word', (tester) async {
       await openSetup(tester);
       await tester.tap(categoryPill('My word'));
+      await tester.pump();
+      await tester.tap(categoryPill('Places')); // only "My word" stays on
       await tester.pump();
       await tester.enterText(
         find.byKey(const Key('singleWordField')),

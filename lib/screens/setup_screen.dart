@@ -36,7 +36,8 @@ class _SetupScreenState extends State<SetupScreen> {
   Category? _category;
 
   // Spy options.
-  SpyCategory _spyCategory = SpyCategory.places;
+  /// The chosen word categories: any number, but never none.
+  final _spyCategories = <SpyCategory>{SpyCategory.places};
 
   /// The word typed for "One word"; only for this game, never saved.
   final _singleWord = TextEditingController();
@@ -94,7 +95,7 @@ class _SetupScreenState extends State<SetupScreen> {
     // "My word": there must be a word to play with.
     final ownWord = SettingsController.cleanSpyWord(_singleWord.text);
     if (widget.mode == GameMode.spy &&
-        _spyCategory.isSingle &&
+        _spyCategories.contains(SpyCategory.single) &&
         ownWord == null) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -116,8 +117,10 @@ class _SetupScreenState extends State<SetupScreen> {
                 playerNames: names,
                 spies: _spies,
                 duration: Duration(minutes: _minutes),
-                category: _spyCategory,
-                ownWord: _spyCategory.isSingle ? ownWord : null,
+                categories: Set.of(_spyCategories),
+                ownWord: _spyCategories.contains(SpyCategory.single)
+                    ? ownWord
+                    : null,
                 timeWarning: _timeWarning,
               )
             : GameScreen(
@@ -128,6 +131,16 @@ class _SetupScreenState extends State<SetupScreen> {
       ),
     );
   }
+
+  /// Turns a category on or off. At least one always stays on, so there is
+  /// always something to draw the word from.
+  void _toggleCategory(SpyCategory category) => setState(() {
+    if (_spyCategories.contains(category)) {
+      if (_spyCategories.length > 1) _spyCategories.remove(category);
+    } else {
+      _spyCategories.add(category);
+    }
+  });
 
   /// The options below the player list: content categories for the card
   /// games, spies and timer for Spy.
@@ -161,13 +174,15 @@ class _SetupScreenState extends State<SetupScreen> {
       divider,
       header(Icons.category_outlined, s['spy_words']),
       const SizedBox(height: 14),
-      PillWrap<SpyCategory>(
+      MultiPillWrap<SpyCategory>(
         key: const Key('spyCategoryPills'),
         options: [for (final c in SpyCategory.values) (c, s[c.labelKey])],
-        selected: _spyCategory,
-        onSelected: (c) => setState(() => _spyCategory = c),
+        selected: _spyCategories,
+        onToggle: _toggleCategory,
       ),
-      if (_spyCategory.isSingle) ...[
+      // "My word" is one of the choices, so its field is right there as soon
+      // as it is selected.
+      if (_spyCategories.contains(SpyCategory.single)) ...[
         const SizedBox(height: 14),
         _SingleWordField(controller: _singleWord),
       ],

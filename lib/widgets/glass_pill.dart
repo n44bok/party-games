@@ -149,3 +149,37 @@ class PillWrap<T> extends StatelessWidget {
     );
   }
 }
+
+/// [GlassPill]s for choosing any number of values, wrapping onto as many lines
+/// as needed. Tapping a pill reports it through [onToggle]; the caller decides
+/// what that does (for instance refusing to clear the last one).
+class MultiPillWrap<T> extends StatelessWidget {
+  const MultiPillWrap({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onToggle,
+  });
+
+  /// (value, label) pairs, in display order.
+  final List<(T, String)> options;
+  final Set<T> selected;
+  final ValueChanged<T> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final (value, label) in options)
+          GlassPill(
+            label: label,
+            selected: selected.contains(value),
+            expand: false,
+            onTap: () => onToggle(value),
+          ),
+      ],
+    );
+  }
+}
