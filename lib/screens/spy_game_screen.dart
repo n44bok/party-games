@@ -71,9 +71,6 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
   int _remaining = 0;
   bool _paused = false;
 
-  /// Words the user has crossed off in the list; reset each round.
-  final _crossedOut = <String>{};
-
   int get _players => widget.playerNames.length;
 
   @override
@@ -135,7 +132,6 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
       );
       _turn = 0;
       _revealed = false;
-      _crossedOut.clear();
       _phase = _Phase.reveal;
     });
   }
@@ -301,45 +297,17 @@ class _SpyGameScreenState extends State<SpyGameScreen> {
             ),
           ),
         ),
-        Row(
-          children: [
-            if (!timeUp) ...[
-              Expanded(
-                child: GlassButton(
-                  label: _paused ? s['spy_resume'] : s['spy_pause'],
-                  icon: _paused
-                      ? Icons.play_arrow_rounded
-                      : Icons.pause_rounded,
-                  onPressed: () => setState(() => _paused = !_paused),
-                ),
-              ),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: GlassButton(
-                label: s['spy_locations'],
-                icon: Icons.place_outlined,
-                onPressed: () => _showPlaces(s),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+        // No pause once the time is up: only revealing is left to do.
+        if (!timeUp) ...[
+          GlassButton(
+            label: _paused ? s['spy_resume'] : s['spy_pause'],
+            icon: _paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+            onPressed: () => setState(() => _paused = !_paused),
+          ),
+          const SizedBox(height: 12),
+        ],
         GradientButton(label: s['spy_reveal'], height: 60, onPressed: _reveal),
       ],
-    );
-  }
-
-  void _showPlaces(Strings s) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _PlacesSheet(
-        title: s['spy_locations'],
-        places: _words!,
-        crossedOut: _crossedOut,
-      ),
     );
   }
 
@@ -641,112 +609,6 @@ class _TimerDial extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Bottom sheet with every possible word; tapping crosses one off.
-class _PlacesSheet extends StatefulWidget {
-  const _PlacesSheet({
-    required this.title,
-    required this.places,
-    required this.crossedOut,
-  });
-
-  final String title;
-  final List<String> places;
-
-  /// Owned by the game screen so the marks survive closing the sheet.
-  final Set<String> crossedOut;
-
-  @override
-  State<_PlacesSheet> createState() => _PlacesSheetState();
-}
-
-class _PlacesSheetState extends State<_PlacesSheet> {
-  @override
-  Widget build(BuildContext context) {
-    final maxHeight = MediaQuery.sizeOf(context).height * 0.7;
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Color(0xFF1B1230),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final place in widget.places)
-                      _PlaceChip(
-                        place: place,
-                        crossedOut: widget.crossedOut.contains(place),
-                        onTap: () => setState(() {
-                          if (!widget.crossedOut.add(place)) {
-                            widget.crossedOut.remove(place);
-                          }
-                        }),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceChip extends StatelessWidget {
-  const _PlaceChip({
-    required this.place,
-    required this.crossedOut,
-    required this.onTap,
-  });
-
-  final String place;
-  final bool crossedOut;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          color: Colors.white.withValues(alpha: crossedOut ? 0.03 : 0.08),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-        ),
-        child: Text(
-          place,
-          style: TextStyle(
-            fontSize: 15,
-            color: Colors.white.withValues(alpha: crossedOut ? 0.35 : 1),
-            decoration: crossedOut ? TextDecoration.lineThrough : null,
-            decorationColor: Colors.white.withValues(alpha: 0.6),
-          ),
-        ),
       ),
     );
   }

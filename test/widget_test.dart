@@ -939,19 +939,6 @@ void main() {
         }
         expect(seen.length, 1);
         expect(expected, contains(seen.single));
-
-        // The word list shows this category's words, and only them.
-        await tester.tap(find.text('Words'));
-        await settle(tester);
-        for (final word in expected) {
-          expect(find.text(word), findsWidgets);
-        }
-        for (final other in FakeRepository.words.entries) {
-          if (other.key == entry.value) continue;
-          for (final word in other.value) {
-            expect(find.text(word), findsNothing);
-          }
-        }
       });
     }
 
@@ -1025,14 +1012,8 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       expect(find.text('7:55'), findsOneWidget);
 
-      // The list of places can be opened and closed again.
-      await tester.tap(find.text('Words'));
-      await settle(tester);
-      for (final place in FakeRepository.places) {
-        expect(find.text(place), findsWidgets);
-      }
-      await tester.tapAt(const Offset(195, 60)); // outside the sheet
-      await settle(tester);
+      // There is no word list to open: only pause and reveal are offered.
+      expect(find.text('Words'), findsNothing);
 
       // Result: the real spy and the place.
       await tester.tap(find.text('Reveal the spy'));
