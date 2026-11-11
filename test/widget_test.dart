@@ -2652,6 +2652,58 @@ void main() {
       expect(find.byType(HomeScreen), findsOneWidget);
     });
 
+    testWidgets('two players: one performs, the other guesses', (tester) async {
+      spyPhone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), voice: FakeVoiceService()),
+      );
+      await openGame(tester, 'Song Backwards');
+      await settle(tester);
+      await tester.tap(find.byTooltip('−'));
+      await tester.pump();
+      expect(
+        tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
+        '2',
+      );
+      // Two is the fewest.
+      await tester.tap(find.byTooltip('−'));
+      await tester.pump();
+      expect(
+        tester.widget<Text>(find.byKey(const Key('playersCount'))).data,
+        '2',
+      );
+      await startGame(tester);
+      await settle(tester);
+      await settle(tester);
+
+      for (var turn = 0; turn < 2; turn++) {
+        expect(passName(tester, 'reverseSinger'), 'Player ${turn + 1}');
+        await tapText(tester, "I'm ready");
+        await record(tester);
+        // The same player listens: the phone is not passed on.
+        expect(find.byKey(const Key('reverseImitator')), findsNothing);
+        expect(title(tester), 'Player ${turn + 1}, listen closely');
+        await tapText(tester, 'Now sing it back');
+        await record(tester);
+        await tapText(tester, 'Reveal the song');
+        await tapText(tester, turn == 0 ? 'Guessed it!' : 'Not this time');
+      }
+      expect(
+        tester
+            .widget<GradientText>(find.byKey(const Key('reverseWinner')))
+            .text,
+        'Player 1 wins!',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('reverseFinal0'))).data,
+        '1',
+      );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('reverseFinal1'))).data,
+        '0',
+      );
+    });
+
     testWidgets('its rules are explained in the help popover', (tester) async {
       phone(tester);
       await tester.pumpWidget(app());

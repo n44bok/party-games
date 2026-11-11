@@ -70,7 +70,6 @@ enum GameMode {
   int get minPlayers => switch (this) {
     spy => 3,
     mafia => 5,
-    reverseSong => 3,
     _ => 2,
   };
 

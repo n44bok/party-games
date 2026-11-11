@@ -42,7 +42,7 @@ class ReverseSongScreen extends StatefulWidget {
     required this.rounds,
   });
 
-  /// Display names in turn order (three at least).
+  /// Display names in turn order (two at least).
   final List<String> playerNames;
 
   /// How many times each player sings the original.
@@ -80,7 +80,10 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
 
   int get _players => widget.playerNames.length;
   int get _singer => _turn % _players;
-  int get _imitator => (_singer + 1) % _players;
+
+  /// With only two players (or teams) the same one sings and sings back,
+  /// and the other one guesses.
+  int get _imitator => _players == 2 ? _singer : (_singer + 1) % _players;
   int get _round => _turn ~/ _players + 1;
   String _name(int i) => widget.playerNames[i];
 
@@ -157,7 +160,8 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
       if (_phase == _Phase.singing) {
         _original = done.original;
         _originalReversed = done.reversed;
-        _phase = _Phase.passImitator;
+        // The same player keeps the phone when they are their own imitator.
+        _phase = _imitator == _singer ? _Phase.listening : _Phase.passImitator;
       } else {
         _imitationReversed = done.reversed;
         _phase = _Phase.guessing;
@@ -193,7 +197,7 @@ class _ReverseSongScreenState extends State<ReverseSongScreen> {
     _haptic();
     if (guessed) {
       _scores[_singer]++;
-      _scores[_imitator]++;
+      if (_imitator != _singer) _scores[_imitator]++;
     }
     if (_turn + 1 >= _players * widget.rounds) {
       _go(_Phase.result);
