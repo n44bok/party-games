@@ -17,12 +17,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = await SettingsController.load();
   final ads = GoogleAdService(settings);
-  // Starting the ads SDK can be slow (or fail offline); never hold the app
-  // back for it.
-  await ads.initialize().timeout(
-    const Duration(seconds: 3),
-    onTimeout: () => debugPrint('Ads SDK is slow to start; continuing.'),
-  );
   runApp(
     PartyGamesApp(
       settings: settings,
@@ -32,6 +26,9 @@ Future<void> main() async {
       scrollHint: true,
     ),
   );
+  // The consent and tracking questions are shown over the app, so they wait
+  // until it is on screen. The app never waits for the ads SDK.
+  WidgetsBinding.instance.addPostFrameCallback((_) => ads.initialize());
 }
 
 class PartyGamesApp extends StatefulWidget {

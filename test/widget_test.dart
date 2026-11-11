@@ -91,6 +91,17 @@ class FakeAdService implements AdService {
   int prepares = 0;
   int startAds = 0;
 
+  /// Whether Settings should offer the ad privacy choice, and how often it
+  /// was opened.
+  bool privacyRequired = false;
+  int privacyOpened = 0;
+
+  @override
+  Future<bool> privacyOptionsRequired() async => privacyRequired;
+
+  @override
+  Future<void> showPrivacyOptions() async => privacyOpened++;
+
   @override
   void prepareInterstitial() => prepares++;
 
@@ -2781,6 +2792,54 @@ void main() {
       await tester.tap(find.byTooltip('Rules').at(3));
       await settle(tester);
       expect(find.textContaining('A team game'), findsOneWidget);
+    });
+  });
+
+  group('ad consent', () {
+    Future<void> openSettings(
+      WidgetTester tester,
+      FakeAdService ads, {
+      SettingsController? settings,
+    }) async {
+      phone(tester);
+      await tester.pumpWidget(
+        PartyGamesApp(
+          repository: FakeRepository(),
+          ads: ads,
+          settings: settings,
+        ),
+      );
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+      await tester.pump(); // the answer about the privacy entry arrives
+    }
+
+    testWidgets('settings offers the ad privacy choice where required', (
+      tester,
+    ) async {
+      final ads = FakeAdService()..privacyRequired = true;
+      await openSettings(tester, ads);
+      expect(find.byKey(const Key('privacyOptions')), findsOneWidget);
+      expect(find.text('Ad privacy'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('privacyOptions')));
+      await tester.pump();
+      expect(ads.privacyOpened, 1);
+    });
+
+    testWidgets('and not elsewhere', (tester) async {
+      await openSettings(tester, FakeAdService());
+      expect(find.byKey(const Key('privacyOptions')), findsNothing);
+    });
+
+    testWidgets('and not once ads are removed', (tester) async {
+      final ads = FakeAdService()..privacyRequired = true;
+      await openSettings(
+        tester,
+        ads,
+        settings: SettingsController(adsRemoved: true),
+      );
+      expect(find.byKey(const Key('privacyOptions')), findsNothing);
     });
   });
 }

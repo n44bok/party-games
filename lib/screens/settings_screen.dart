@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../ads/ad_service.dart';
 import '../data/settings.dart';
 import '../data/strings.dart';
 import '../widgets/glass.dart';
@@ -73,7 +74,82 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: settings.setHaptics,
                 switchKey: const Key('hapticsSwitch'),
               ),
+              // Only where consent is required (e.g. the EU) and while ads
+              // are on.
+              if (!settings.adsRemoved) const _PrivacyOptionsCard(),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Ad privacy": opens the form where people can change their consent. It
+/// shows up only when it is required (the SDK says so).
+class _PrivacyOptionsCard extends StatefulWidget {
+  const _PrivacyOptionsCard();
+
+  @override
+  State<_PrivacyOptionsCard> createState() => _PrivacyOptionsCardState();
+}
+
+class _PrivacyOptionsCardState extends State<_PrivacyOptionsCard> {
+  bool _required = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    AdScope.read(context).privacyOptionsRequired().then((required) {
+      if (mounted && required != _required) {
+        setState(() => _required = required);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_required) return const SizedBox.shrink();
+    final s = Strings.of(context);
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: GlassCard(
+        padding: EdgeInsets.zero,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            key: const Key('privacyOptions'),
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => AdScope.read(context).showPrivacyOptions(),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
+              child: Row(
+                children: [
+                  const Icon(Icons.privacy_tip_outlined),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          s['ad_privacy'],
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          s['ad_privacy_desc'],
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
+              ),
+            ),
           ),
         ),
       ),

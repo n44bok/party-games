@@ -23,6 +23,13 @@ abstract class AdService {
   /// Call when a round has been played. May show a full-screen ad; never
   /// blocks the game, and does nothing if no ad is ready.
   void onRoundFinished();
+
+  /// Whether people must be able to change their ad privacy choice (they are
+  /// somewhere consent is required). Settings shows an entry if so.
+  Future<bool> privacyOptionsRequired();
+
+  /// Opens the form where people can change their ad privacy choice.
+  Future<void> showPrivacyOptions();
 }
 
 class NoAdService implements AdService {
@@ -42,6 +49,12 @@ class NoAdService implements AdService {
 
   @override
   void onRoundFinished() {}
+
+  @override
+  Future<bool> privacyOptionsRequired() async => false;
+
+  @override
+  Future<void> showPrivacyOptions() async {}
 }
 
 /// Decides when a full-screen ad is due: at most once per game, after

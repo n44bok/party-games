@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../data/settings.dart';
+import 'ad_consent.dart';
 import 'ad_service.dart';
 
 /// Ad unit ids.
@@ -46,13 +47,21 @@ class AdUnits {
 /// AdMob ads: banners on the home and setup screens and one full-screen ad per game,
 /// after a few rounds. Nothing is shown once [SettingsController.adsRemoved] is set.
 // TODO(ads): rewarded ads to unlock premium categories.
-// TODO(ads): ask for consent (UMP, and ATT on iOS) before serving real ads.
 class GoogleAdService implements AdService {
-  GoogleAdService(this._settings, {InterstitialPacer? pacer})
-    : _pacer = pacer ?? InterstitialPacer();
+  GoogleAdService(
+    this._settings, {
+    InterstitialPacer? pacer,
+    AdConsent? consent,
+  }) : _pacer = pacer ?? InterstitialPacer(),
+       _consent = consent ?? const AdConsent();
 
   final SettingsController _settings;
   final InterstitialPacer _pacer;
+  final AdConsent _consent;
+
+  /// Becomes true once the person has been asked what they must be asked and
+  /// ads may be requested. Until then no ad is requested or shown.
+  final _ready = ValueNotifier<bool>(false);
 
   InterstitialAd? _interstitial;
   bool _loadingInterstitial = false;
@@ -63,20 +72,42 @@ class GoogleAdService implements AdService {
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
 
-  /// Starts the SDK and preloads the first full-screen ad. Never throws: a
-  /// failure here must not stop the app from starting.
+  /// Asks for consent (and, on iOS, for tracking permission), then starts
+  /// the SDK and preloads the first full-screen ad. Call it once the app is
+  /// on screen: the questions are shown over it. Never throws: a failure here
+  /// must not stop the app.
   Future<void> initialize() async {
     if (!isSupported) return;
     try {
+      await _consent.gatherConsent();
+      await _consent.requestTracking();
+      // Without consent (where it is needed) no ad may be requested.
+      if (!await _consent.canRequestAds()) return;
       await MobileAds.instance.initialize();
+      _ready.value = true;
       _loadInterstitial();
     } catch (e) {
       debugPrint('Could not start the ads SDK: $e');
     }
   }
 
+  @override
+  Future<bool> privacyOptionsRequired() => _consent.privacyOptionsRequired();
+
+  @override
+  Future<void> showPrivacyOptions() async {
+    await _consent.showPrivacyOptions();
+    // The choice may have changed what can be requested.
+    if (!_ready.value && await _consent.canRequestAds()) {
+      await MobileAds.instance.initialize();
+      _ready.value = true;
+      _loadInterstitial();
+    }
+  }
+
   void _loadInterstitial() {
-    if (!isSupported || _loadingInterstitial || _interstitial != null) return;
+    if (!isSupported || !_ready.value) return;
+    if (_loadingInterstitial || _interstitial != null) return;
     _loadingInterstitial = true;
     InterstitialAd.load(
       adUnitId: AdUnits.interstitial,
@@ -154,8 +185,14 @@ class GoogleAdService implements AdService {
   }
 
   @override
-  Widget buildBanner() =>
-      isSupported ? _BannerView(settings: _settings) : const SizedBox.shrink();
+  Widget buildBanner() => isSupported
+      ? ValueListenableBuilder<bool>(
+          valueListenable: _ready,
+          builder: (context, ready, _) => ready
+              ? _BannerView(settings: _settings)
+              : const SizedBox.shrink(),
+        )
+      : const SizedBox.shrink();
 }
 
 /// An anchored adaptive banner: AdMob picks the height for the width it is
