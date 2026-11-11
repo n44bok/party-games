@@ -90,13 +90,16 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Round translucent icon button (stepper -/+).
+/// Round dark-glass icon button with a gradient hairline border (header
+/// buttons, the players stepper).
 class GlassIconButton extends StatelessWidget {
   const GlassIconButton({
     super.key,
     required this.icon,
     required this.tooltip,
     required this.onPressed,
+    this.iconColor = Colors.white,
+    this.size = 46,
   });
 
   final IconData icon;
@@ -104,6 +107,8 @@ class GlassIconButton extends StatelessWidget {
 
   /// `null` disables the button.
   final VoidCallback? onPressed;
+  final Color iconColor;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -113,19 +118,16 @@ class GlassIconButton extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onPressed,
-        child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: enabled ? 0.10 : 0.04),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: enabled ? 0.22 : 0.08),
+        child: Opacity(
+          opacity: enabled ? 1 : 0.4,
+          child: GlassCard(
+            radius: size / 2,
+            padding: EdgeInsets.zero,
+            child: SizedBox(
+              width: size - 2 * GlassCard.borderWidth,
+              height: size - 2 * GlassCard.borderWidth,
+              child: Icon(icon, color: iconColor, size: 22),
             ),
-          ),
-          child: Icon(
-            icon,
-            color: Colors.white.withValues(alpha: enabled ? 1 : 0.35),
           ),
         ),
       ),

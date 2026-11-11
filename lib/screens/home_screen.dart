@@ -94,17 +94,18 @@ class _GamesTab extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton.filledTonal(
+              GlassIconButton(
                 tooltip: 'Premium',
                 onPressed: comingSoon,
-                icon: const Icon(Icons.workspace_premium, color: Colors.amber),
+                icon: Icons.workspace_premium,
+                iconColor: const Color(0xFFFFC857),
               ),
-              IconButton.filledTonal(
+              GlassIconButton(
                 tooltip: s['settings'],
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SettingsScreen()),
                 ),
-                icon: const Icon(Icons.settings_outlined),
+                icon: Icons.settings_outlined,
               ),
             ],
           ),

@@ -68,7 +68,7 @@ class Strings {
       'funny': 'Funny',
     },
     'uk': {
-      'title': 'Ігри для компанії',
+      'title': 'Party Games', // the app name is not translated
       'subtitle': 'Найкращі ігри для друзів,\nпар і вечірок',
       'next': 'Далі',
       'truth': 'Правда',
