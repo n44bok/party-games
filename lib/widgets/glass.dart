@@ -7,7 +7,7 @@ const brandGradient = LinearGradient(
   end: Alignment.centerRight,
 );
 
-/// Translucent panel with a thin light border.
+/// Translucent panel with a gradient hairline border (bright in the corners).
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
@@ -24,17 +24,94 @@ class GlassCard extends StatelessWidget {
   /// Overrides the default faint white fill.
   final Gradient? gradient;
 
+  static const _border = 1.2;
+  static final _glassBase = const Color(0xFF140B2B).withValues(alpha: 0.45);
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: gradient == null ? Colors.white.withValues(alpha: 0.07) : null,
-        gradient: gradient,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: 0.38),
+            Colors.white.withValues(alpha: 0.07),
+            Colors.white.withValues(alpha: 0.2),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
       ),
-      child: child,
+      child: Padding(
+        padding: const EdgeInsets.all(_border),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius - _border),
+            gradient:
+                gradient ??
+                LinearGradient(
+                  // Dark tinted glass with a faint light sheen.
+                  colors: [
+                    Color.alphaBlend(
+                      Colors.white.withValues(alpha: 0.08),
+                      _glassBase,
+                    ),
+                    Color.alphaBlend(
+                      Colors.white.withValues(alpha: 0.02),
+                      _glassBase,
+                    ),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Round translucent icon button (stepper -/+).
+class GlassIconButton extends StatelessWidget {
+  const GlassIconButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+
+  /// `null` disables the button.
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: enabled ? 0.10 : 0.04),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: enabled ? 0.22 : 0.08),
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.white.withValues(alpha: enabled ? 1 : 0.35),
+          ),
+        ),
+      ),
     );
   }
 }

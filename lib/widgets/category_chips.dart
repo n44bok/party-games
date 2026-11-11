@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/strings.dart';
 import '../models/game_mode.dart';
+import 'glass.dart';
 
-/// "All" plus one chip per [Category]; `null` means all categories.
+/// "All" plus one pill per [Category]; `null` means all categories.
 class CategoryChips extends StatelessWidget {
   const CategoryChips({
     super.key,
@@ -17,20 +18,75 @@ class CategoryChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
-    Widget chip(String label, IconData? icon, Category? value) => ChoiceChip(
-      avatar: icon == null ? null : Icon(icon, size: 18),
-      label: Text(label),
+    Widget pill(String label, Category? value) => _Pill(
+      label: label,
       selected: selected == value,
-      showCheckmark: false,
-      onSelected: (_) => onSelected(value),
+      onTap: () => onSelected(value),
     );
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
-        chip(s['all'], null, null),
-        for (final c in Category.values) chip(s[c.id], c.icon, c),
+        pill(s['all'], null),
+        for (final c in Category.values) pill(s[c.id], c),
       ],
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: selected
+                ? const LinearGradient(
+                    colors: [Color(0xFFC15BF0), Color(0xFFF06FB5)],
+                  )
+                : null,
+            color: selected ? null : Colors.white.withValues(alpha: 0.06),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: selected ? 0.35 : 0.16),
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: brandGradient.colors.first.withValues(alpha: 0.45),
+                      blurRadius: 14,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -49,7 +49,13 @@ class _SetupScreenState extends State<SetupScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
+          onPressed: () => Navigator.of(context).maybePop(),
+          icon: const Icon(Icons.chevron_left_rounded, size: 36),
+        ),
+      ),
       body: GradientBackground(
         child: Stack(
           children: [
@@ -59,34 +65,16 @@ class _SetupScreenState extends State<SetupScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                 child: Column(
                   children: [
-                    Container(
-                      width: 104,
-                      height: 104,
-                      decoration: BoxDecoration(
-                        gradient: mode.gradient,
-                        borderRadius: BorderRadius.circular(34),
-                        boxShadow: [
-                          BoxShadow(
-                            color: mode.color.withValues(alpha: 0.5),
-                            blurRadius: 28,
-                          ),
-                        ],
-                      ),
-                      child: Icon(mode.icon, size: 56, color: Colors.white),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      s.modeName(mode),
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    _ModeBlob(mode: mode),
+                    const SizedBox(height: 14),
+                    _ModeTitle(title: s.modeName(mode)),
                     const SizedBox(height: 6),
                     Text(
                       s['${mode.id}_desc'],
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyLarge,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.8),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     GlassCard(
@@ -103,34 +91,35 @@ class _SetupScreenState extends State<SetupScreen> {
                                   style: theme.textTheme.titleMedium,
                                 ),
                               ),
-                              IconButton.filledTonal(
+                              GlassIconButton(
+                                icon: Icons.remove,
                                 tooltip: '−',
                                 onPressed: _players > SetupScreen.minPlayers
                                     ? () => _changePlayers(-1)
                                     : null,
-                                icon: const Icon(Icons.remove),
                               ),
                               SizedBox(
-                                width: 40,
+                                width: 48,
                                 child: Text(
                                   '$_players',
                                   key: const Key('playersCount'),
                                   textAlign: TextAlign.center,
-                                  style: theme.textTheme.titleLarge,
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
                               ),
-                              IconButton.filledTonal(
+                              GlassIconButton(
+                                icon: Icons.add,
                                 tooltip: '+',
                                 onPressed: _players < SetupScreen.maxPlayers
                                     ? () => _changePlayers(1)
                                     : null,
-                                icon: const Icon(Icons.add),
                               ),
                             ],
                           ),
                           Divider(
                             height: 32,
-                            color: Colors.white.withValues(alpha: 0.16),
+                            color: Colors.white.withValues(alpha: 0.14),
                           ),
                           Row(
                             children: [
@@ -142,7 +131,7 @@ class _SetupScreenState extends State<SetupScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           CategoryChips(
                             selected: _category,
                             onSelected: (c) => setState(() => _category = c),
@@ -150,7 +139,7 @@ class _SetupScreenState extends State<SetupScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 22),
                     GradientButton(
                       label: s['start'],
                       icon: Icons.play_arrow_rounded,
@@ -163,6 +152,92 @@ class _SetupScreenState extends State<SetupScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Mode icon inside an organic glass "blob" with a soft purple glow.
+class _ModeBlob extends StatelessWidget {
+  const _ModeBlob({required this.mode});
+
+  final GameMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 128,
+      height: 118,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.elliptical(70, 62),
+          topRight: Radius.elliptical(48, 70),
+          bottomRight: Radius.elliptical(66, 52),
+          bottomLeft: Radius.elliptical(52, 66),
+        ),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFFB07CFF).withValues(alpha: 0.7),
+            const Color(0xFF5B3A98).withValues(alpha: 0.55),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8A5CFF).withValues(alpha: 0.45),
+            blurRadius: 32,
+          ),
+        ],
+      ),
+      // The icon is filled with the mode's own warm-to-saturated gradient.
+      child: ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (rect) => LinearGradient(
+          colors: [mode.tint, mode.glow],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(rect),
+        child: Icon(mode.icon, size: 72, color: Colors.white),
+      ),
+    );
+  }
+}
+
+/// Title where the connecting word ("or" / "чи") gets a lavender accent.
+class _ModeTitle extends StatelessWidget {
+  const _ModeTitle({required this.title});
+
+  final String title;
+
+  static final _connector = RegExp(r'( or | чи )');
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(
+      fontSize: 38,
+      height: 1.1,
+      fontWeight: FontWeight.w800,
+      color: Colors.white,
+    );
+    final match = _connector.firstMatch(title);
+    if (match == null) {
+      return Text(title, textAlign: TextAlign.center, style: style);
+    }
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: [
+          TextSpan(text: title.substring(0, match.start)),
+          TextSpan(
+            text: match.group(0),
+            style: const TextStyle(color: Color(0xFFC9A8FF)),
+          ),
+          TextSpan(text: title.substring(match.end)),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }
