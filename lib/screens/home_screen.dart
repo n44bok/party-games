@@ -107,7 +107,7 @@ class _GamesTab extends StatelessWidget {
           const SizedBox(height: 8),
           Stack(
             children: [
-              const Positioned(right: 0, top: 0, child: _Cups()),
+              const Positioned(right: -30, top: -30, child: _Cups()),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -153,20 +153,30 @@ class _GamesTab extends StatelessWidget {
   }
 }
 
-/// Party cups, drawn from emoji until there is a real illustration.
+/// Neon cups illustration. The picture has an opaque dark backdrop, so its
+/// edges are faded out to blend into the screen's own gradient.
 class _Cups extends StatelessWidget {
   const _Cups();
 
   @override
   Widget build(BuildContext context) {
-    const style = TextStyle(fontSize: 64);
-    return Opacity(
-      opacity: 0.9,
-      child: Row(
-        children: [
-          Transform.rotate(angle: -0.25, child: const Text('🥤', style: style)),
-          Transform.rotate(angle: 0.25, child: const Text('🥤', style: style)),
-        ],
+    return IgnorePointer(
+      child: SizedBox(
+        width: 230,
+        height: 160,
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => const RadialGradient(
+            colors: [Colors.black, Colors.black, Colors.transparent],
+            stops: [0.0, 0.5, 1.0],
+          ).createShader(rect),
+          child: Image.asset(
+            'assets/images/party_cups.jpg',
+            fit: BoxFit.cover,
+            // Decorative only; never break the screen over a missing image.
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
+        ),
       ),
     );
   }
