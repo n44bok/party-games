@@ -3107,7 +3107,7 @@ void main() {
       expect(find.text('SUPPORT'), findsOneWidget);
       expect(find.text('Donate with PayPal'), findsOneWidget);
       expect(find.text('Buy a coffee on Ko-fi'), findsOneWidget);
-      expect(paypalDonateUrl, contains('paypal.com'));
+      expect(paypalDonateUrl, 'https://paypal.me/n44bok');
       expect(koFiUrl, 'https://ko-fi.com/n44bok');
     });
 

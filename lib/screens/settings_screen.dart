@@ -9,8 +9,7 @@ import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
 
 /// Where people can support the developer.
-const paypalDonateUrl =
-    'https://www.paypal.com/donate/?business=n44bok2%40gmail.com&currency_code=USD';
+const paypalDonateUrl = 'https://paypal.me/n44bok';
 const koFiUrl = 'https://ko-fi.com/n44bok';
 
 class SettingsScreen extends StatelessWidget {
