@@ -4,7 +4,7 @@
     <!-- The advertising id, used by ads (Android 13 and newer need this declared). -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
     <application
-        android:label="party_games"
+        android:label="Party Games"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
