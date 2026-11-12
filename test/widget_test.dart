@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:party_games/ads/ad_service.dart';
 import 'package:party_games/charades/charades_deck.dart';
+import 'package:party_games/contact/captcha.dart';
+import 'package:party_games/contact/contact_service.dart';
 import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
@@ -175,6 +177,20 @@ class FakePurchaseService extends PurchaseService {
   Future<PurchaseResult> restore() {
     restored++;
     return _answer();
+  }
+}
+
+/// Keeps what the "Write to us" form sends.
+class FakeContactService implements ContactService {
+  FakeContactService([this.result = ContactResult.sent]);
+
+  ContactResult result;
+  final sent = <ContactMessage>[];
+
+  @override
+  Future<ContactResult> send(ContactMessage message) async {
+    sent.add(message);
+    return result;
   }
 }
 
@@ -3094,7 +3110,7 @@ void main() {
 
   group('support links', () {
     Future<void> openSettings(WidgetTester tester) async {
-      phone(tester);
+      spyPhone(tester); // tall: the whole list is built
       await tester.pumpWidget(app());
       await tester.tap(find.byTooltip('Settings'));
       await settle(tester);
@@ -3124,6 +3140,151 @@ void main() {
         // Must be undone before the test ends (Flutter checks it then).
         debugDefaultTargetPlatformOverride = null;
       }
+    });
+  });
+
+  group('contact form', () {
+    test('the question has one right answer', () {
+      final captcha = MathCaptcha(Random(1));
+      expect(captcha.a, inInclusiveRange(2, 9));
+      expect(captcha.b, inInclusiveRange(2, 9));
+      expect(captcha.accepts('${captcha.a + captcha.b}'), isTrue);
+      expect(captcha.accepts(' ${captcha.a + captcha.b} '), isTrue);
+      expect(captcha.accepts('${captcha.a + captcha.b + 1}'), isFalse);
+      expect(captcha.accepts(''), isFalse);
+      expect(captcha.accepts('abc'), isFalse);
+    });
+
+    test('an e-mail is optional but must look like one', () {
+      expect(looksLikeEmail(''), isTrue);
+      expect(looksLikeEmail('  '), isTrue);
+      expect(looksLikeEmail('anna@example.com'), isTrue);
+      expect(looksLikeEmail('anna@example'), isFalse);
+      expect(looksLikeEmail('anna example.com'), isFalse);
+      expect(looksLikeEmail('@example.com'), isFalse);
+    });
+
+    Future<FakeContactService> openForm(
+      WidgetTester tester, {
+      ContactResult result = ContactResult.sent,
+    }) async {
+      spyPhone(tester);
+      final service = FakeContactService(result);
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), contact: service),
+      );
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+      await tester.ensureVisible(find.byKey(const Key('contactCard')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('contactCard')));
+      await settle(tester);
+      return service;
+    }
+
+    /// The answer to the question that is on the screen.
+    int answer(WidgetTester tester) {
+      final text = tester
+          .widget<Text>(find.byKey(const Key('contactQuestion')))
+          .data!;
+      final numbers = RegExp(r'(\d+) \+ (\d+)').firstMatch(text)!;
+      return int.parse(numbers[1]!) + int.parse(numbers[2]!);
+    }
+
+    Future<void> fill(
+      WidgetTester tester, {
+      String message = 'Please add a game about movies!',
+      String email = '',
+      int? captcha,
+    }) async {
+      await tester.enterText(find.byKey(const Key('contactMessage')), message);
+      await tester.enterText(find.byKey(const Key('contactEmail')), email);
+      await tester.enterText(
+        find.byKey(const Key('contactCaptcha')),
+        '${captcha ?? answer(tester)}',
+      );
+      await tester.pump();
+    }
+
+    Future<void> send(WidgetTester tester) async {
+      await tester.ensureVisible(find.byKey(const Key('contactSend')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('contactSend')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('settings invites people to write, in a friendly way', (
+      tester,
+    ) async {
+      await openForm(tester);
+      expect(find.text('Write to us'), findsWidgets);
+      expect(find.textContaining('we read every message'), findsOneWidget);
+      expect(find.textContaining('Are you a person?'), findsOneWidget);
+    });
+
+    testWidgets('a message goes off once the question is answered', (
+      tester,
+    ) async {
+      final service = await openForm(tester);
+      await fill(tester, email: 'anna@example.com');
+      await send(tester);
+
+      expect(service.sent, hasLength(1));
+      expect(service.sent.single.message, 'Please add a game about movies!');
+      expect(service.sent.single.email, 'anna@example.com');
+      expect(service.sent.single.language, 'en');
+      expect(find.byKey(const Key('contactThanks')), findsOneWidget);
+    });
+
+    testWidgets('without an e-mail the message still goes', (tester) async {
+      final service = await openForm(tester);
+      await fill(tester);
+      await send(tester);
+      expect(service.sent.single.email, isNull);
+    });
+
+    testWidgets('a wrong answer sends nothing and asks a new question', (
+      tester,
+    ) async {
+      final service = await openForm(tester);
+      final wrong = answer(tester) + 1;
+      await fill(tester, captcha: wrong);
+      await send(tester);
+
+      expect(service.sent, isEmpty);
+      expect(find.textContaining('not the right answer'), findsOneWidget);
+      expect(find.byKey(const Key('contactThanks')), findsNothing);
+      // The message is still there.
+      expect(find.text('Please add a game about movies!'), findsOneWidget);
+    });
+
+    testWidgets('a message that is too short or an odd e-mail is refused', (
+      tester,
+    ) async {
+      final service = await openForm(tester);
+      await fill(tester, message: 'Hi', email: 'nope');
+      await send(tester);
+      expect(service.sent, isEmpty);
+      expect(find.text('Please write a little more.'), findsOneWidget);
+      expect(find.text('That e-mail does not look right.'), findsOneWidget);
+    });
+
+    testWidgets('a failed send says so and keeps the message', (tester) async {
+      final service = await openForm(tester, result: ContactResult.failed);
+      await fill(tester);
+      await send(tester);
+      expect(service.sent, hasLength(1));
+      expect(find.byKey(const Key('contactThanks')), findsNothing);
+      expect(find.textContaining('Could not send the message'), findsWidgets);
+      expect(find.text('Please add a game about movies!'), findsOneWidget);
+    });
+
+    testWidgets('with the e-mail app, it says what to do next', (tester) async {
+      await openForm(tester, result: ContactResult.mailOpened);
+      await fill(tester);
+      await send(tester);
+      expect(find.textContaining('Press send there'), findsWidgets);
     });
   });
 }

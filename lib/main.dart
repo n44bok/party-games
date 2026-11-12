@@ -3,6 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'ads/ad_service.dart';
 import 'ads/google_ad_service.dart';
+import 'contact/contact_service.dart';
+import 'contact/store_contact_service.dart';
 import 'data/content_repository.dart';
 import 'data/content_scope.dart';
 import 'data/settings.dart';
@@ -27,6 +29,7 @@ Future<void> main() async {
       sounds: AudioSoundService(),
       voice: RecordVoiceService(),
       purchases: purchases,
+      contact: defaultContactService(),
       scrollHint: true,
     ),
   );
@@ -47,6 +50,7 @@ class PartyGamesApp extends StatefulWidget {
     this.sounds = const NoSoundService(),
     this.voice = const NoVoiceService(),
     this.purchases,
+    this.contact = const NoContactService(),
     this.scrollHint = false,
   });
 
@@ -65,6 +69,10 @@ class PartyGamesApp extends StatefulWidget {
   /// Microphone recording and playback for Song Backwards; does nothing
   /// unless provided.
   final VoiceService voice;
+
+  /// Where the "Write to us" form sends its messages; nowhere unless
+  /// provided.
+  final ContactService contact;
 
   /// The App Store / Google Play for Premium; no store unless provided.
   final PurchaseService? purchases;
@@ -150,11 +158,14 @@ class _PartyGamesAppState extends State<PartyGamesApp>
             service: widget.voice,
             child: PurchaseScope(
               service: _purchases,
-              child: AdScope(
-                service: widget.ads,
-                child: ContentScope(
-                  repository: widget.repository ?? ContentRepository(),
-                  child: child!,
+              child: ContactScope(
+                service: widget.contact,
+                child: AdScope(
+                  service: widget.ads,
+                  child: ContentScope(
+                    repository: widget.repository ?? ContentRepository(),
+                    child: child!,
+                  ),
                 ),
               ),
             ),

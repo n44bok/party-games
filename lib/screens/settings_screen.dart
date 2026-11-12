@@ -7,6 +7,7 @@ import '../data/settings.dart';
 import '../data/strings.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
+import 'contact_screen.dart';
 
 /// Where people can support the developer.
 const paypalDonateUrl = 'https://paypal.me/n44bok';
@@ -90,6 +91,17 @@ class SettingsScreen extends StatelessWidget {
               // Only where consent is required (e.g. the EU) and while ads
               // are on.
               if (!settings.adsRemoved) const _PrivacyOptionsCard(),
+              const SizedBox(height: 28),
+              _SectionLabel(s['feedback']),
+              _NavCard(
+                key: const Key('contactCard'),
+                icon: Icons.mail_outline_rounded,
+                title: s['contact_card_title'],
+                description: s['contact_card_desc'],
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ContactScreen()),
+                ),
+              ),
               if (donationsVisible) ...[
                 const SizedBox(height: 28),
                 _SectionLabel(s['support']),
@@ -116,6 +128,62 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A card that opens another screen: an icon, a title and a friendly line.
+class _NavCard extends StatelessWidget {
+  const _NavCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 16, 14),
+            child: Row(
+              children: [
+                Icon(icon),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
           ),
         ),
       ),
