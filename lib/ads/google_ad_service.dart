@@ -11,13 +11,18 @@ import 'ad_service.dart';
 /// Ad unit ids.
 ///
 /// Release builds (the ones that go to the stores) use our real AdMob units.
-/// Debug and profile builds use Google's official TEST units, which always
+/// Debug and profile builds (and release builds made with TEST_ADS) use Google's official TEST units, which always
 /// return a clearly labelled test ad and are safe to click: never click live
 /// ads on your own phone, AdMob treats that as invalid traffic.
 class AdUnits {
   const AdUnits._();
 
-  static bool get _live => kReleaseMode;
+  /// Build with `--dart-define=TEST_ADS=true` to get Google's test ads in a
+  /// release build too (for the TestFlight and Play test builds: new ad units
+  /// often show nothing for hours, and live ads must never be clicked).
+  static const _forceTestAds = bool.fromEnvironment('TEST_ADS');
+
+  static bool get _live => kReleaseMode && !_forceTestAds;
 
   static String get banner => switch (defaultTargetPlatform) {
     TargetPlatform.android =>
