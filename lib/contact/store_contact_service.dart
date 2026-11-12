@@ -7,14 +7,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'contact_service.dart';
 
-/// Where the form's messages go. Create a form with a form service such as
-/// Formspree (formspree.io: "New form", e-mail n44bok@gmail.com) and put its
-/// address here, for example `https://formspree.io/f/abcdwxyz`. The service
-/// passes every message on to the e-mail address behind it, so the address
-/// itself never has to be in the app.
+/// Where the form's messages go: the form at Formspree (formspree.io), which
+/// passes every message on to the developer's e-mail address, so that address
+/// is not needed for sending.
 ///
-/// While this is empty, the form opens the person's e-mail app instead.
-const contactEndpoint = '';
+/// If this is ever emptied, the form opens the person's e-mail app instead.
+const contactEndpoint = 'https://formspree.io/f/xwloplbk';
 
 /// The address the e-mail fallback writes to.
 const contactMailTo = 'n44bok@gmail.com';
