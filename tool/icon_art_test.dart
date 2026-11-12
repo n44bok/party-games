@@ -168,25 +168,18 @@ double _wordmark(Canvas c, {required Offset at, required double width}) {
   return probe.height * 1.86 * k;
 }
 
+/// The same backdrop as the app's home screen (GradientBackground): deep
+/// purple at the top, lighter purple at the bottom.
 void _background(Canvas c) {
   const rect = Rect.fromLTWH(0, 0, _size, _size);
   c.drawRect(
     rect,
     Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFF4A2A8F), Color(0xFF1A0E3F), Color(0xFF0F0820)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+        colors: [Color(0xFF140B2B), Color(0xFF26144A), Color(0xFF5A3A98)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
       ).createShader(rect),
-  );
-  c.drawCircle(
-    const Offset(520, 470),
-    430,
-    Paint()
-      ..shader = ui.Gradient.radial(const Offset(520, 470), 430, [
-        const Color(0xFFB45CF5).withValues(alpha: 0.55),
-        const Color(0xFFB45CF5).withValues(alpha: 0),
-      ]),
   );
 }
 
@@ -207,15 +200,57 @@ Future<void> _save(
   });
 }
 
-/// The whole picture: the name at the top and the cups at the bottom right,
-/// the way the app's home screen is laid out.
-void _artwork(Canvas c, {required double scale}) {
+/// The cups of the home screen header (assets/images/party_cups.jpg), faded
+/// into the background with the same radial mask the app uses.
+void _cupsPhoto(Canvas c, ui.Image photo, {required Offset at}) {
+  final dest = Rect.fromLTWH(at.dx, at.dy, 900, 600);
+  c.saveLayer(dest, Paint());
+  c.drawImageRect(
+    photo,
+    Rect.fromLTWH(0, 0, photo.width.toDouble(), photo.height.toDouble()),
+    dest,
+    Paint()..filterQuality = FilterQuality.high,
+  );
+  // Fade the photo out in an ellipse around the cups, so only they and a soft
+  // shadow remain on the background.
+  c.drawRect(
+    dest,
+    Paint()
+      ..blendMode = BlendMode.dstIn
+      ..shader = const RadialGradient(
+        colors: [Colors.black, Colors.black, Colors.transparent],
+        stops: [0.0, 0.74, 1.0],
+        transform: _Ellipse(1.5),
+      ).createShader(dest),
+  );
+  c.restore();
+}
+
+/// Stretches a radial gradient sideways into an ellipse.
+class _Ellipse extends GradientTransform {
+  const _Ellipse(this.stretch);
+
+  final double stretch;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    final center = bounds.center;
+    return Matrix4.identity()
+      ..translate(center.dx, center.dy)
+      ..scale(stretch, 1.0)
+      ..translate(-center.dx, -center.dy);
+  }
+}
+
+/// The whole picture: the name at the top and the cups below it, the way the
+/// app's home screen is laid out.
+void _artwork(Canvas c, ui.Image photo, {required double scale}) {
   c.save();
   c.translate(_size / 2, _size / 2);
   c.scale(scale);
   c.translate(-_size / 2, -_size / 2);
-  _wordmark(c, at: const Offset(96, 86), width: 800);
-  _cups(c, scale: 1.0, at: const Offset(560, 780));
+  _wordmark(c, at: const Offset(96, 80), width: 800);
+  _cupsPhoto(c, photo, at: const Offset(70, 470));
   c.restore();
 }
 
@@ -230,15 +265,24 @@ void main() {
         ..addFont(Future.value(ByteData.sublistView(bytes)));
       await loader.load();
     });
+    final photo = (await tester.runAsync(() async {
+      final bytes = File('assets/images/party_cups.jpg').readAsBytesSync();
+      final codec = await ui.instantiateImageCodec(bytes);
+      return (await codec.getNextFrame()).image;
+    }))!;
     // iOS and legacy Android: everything in one picture, full bleed.
     await _save(tester, 'icon.png', (c) {
       _background(c);
-      _artwork(c, scale: 1.0);
+      _artwork(c, photo, scale: 1.0);
     });
     // Android adaptive icon: the same background and the artwork on its own,
     // smaller so it stays inside the safe zone of every mask.
     await _save(tester, 'icon_background.png', _background);
-    await _save(tester, 'icon_foreground.png', (c) => _artwork(c, scale: 0.68));
+    await _save(
+      tester,
+      'icon_foreground.png',
+      (c) => _artwork(c, photo, scale: 0.68),
+    );
     expect(math.pi, greaterThan(3));
   });
 }
