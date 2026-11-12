@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The deep purple at the top of the app's own background, so the start
+         screen turns into the app without a white flash. -->
+    <color name="launch_background">#FF140B2B</color>
+</resources>

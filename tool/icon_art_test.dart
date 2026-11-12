@@ -49,6 +49,14 @@ void main() {
     // iOS and old Android: the logo itself, full bleed.
     await _save(tester, 'icon.png', (c) => _logo(c, logo, full));
 
+    // The logo with rounded corners (like an app icon), for the start screen.
+    await _save(tester, 'launch_logo.png', (c) {
+      c.clipRRect(
+        RRect.fromRectAndRadius(full, const Radius.circular(_size * 0.225)),
+      );
+      _logo(c, logo, full);
+    });
+
     // Android adaptive icon. The launcher cuts a circle or a rounded square
     // out of the middle, so the logo goes in smaller (its text and cards then
     // stay inside every mask) and the margin around it is a plain wash in the
