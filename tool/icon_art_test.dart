@@ -3,9 +3,11 @@
 // `dart run flutter_launcher_icons` to build every size from the PNGs.
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data' show ByteData;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
 
 const _size = 1024.0;
@@ -107,9 +109,9 @@ void _cup(
   c.restore();
 }
 
-void _cups(Canvas c, {double scale = 1}) {
+void _cups(Canvas c, {double scale = 1, Offset at = const Offset(512, 512)}) {
   c.save();
-  c.translate(_size / 2, _size / 2);
+  c.translate(at.dx, at.dy);
   c.scale(scale);
   c.translate(-_size / 2 - 8, -_size / 2 - 18);
   _cup(
@@ -134,6 +136,38 @@ void _cups(Canvas c, {double scale = 1}) {
   c.restore();
 }
 
+/// "Party" in white and "Games" in the brand gradient, like the app's header.
+/// Returns the height used, so the cups can sit below it.
+double _wordmark(Canvas c, {required Offset at, required double width}) {
+  TextPainter line(String text, Paint? foreground) => TextPainter(
+    text: TextSpan(
+      text: text,
+      style: TextStyle(
+        fontFamily: 'RobotoBlack',
+        fontSize: 300,
+        height: 0.98,
+        letterSpacing: -6,
+        color: foreground == null ? Colors.white : null,
+        foreground: foreground,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  final probe = line('Games', null);
+  final k = width / probe.width;
+  c.save();
+  c.translate(at.dx, at.dy);
+  c.scale(k);
+  line('Party', null).paint(c, Offset.zero);
+  final gradient = Paint()
+    ..shader = const LinearGradient(
+      colors: [Color(0xFFA66BFF), Color(0xFFF06FB5)],
+    ).createShader(Rect.fromLTWH(0, 0, probe.width, probe.height));
+  line('Games', gradient).paint(c, Offset(0, probe.height * 0.86));
+  c.restore();
+  return probe.height * 1.86 * k;
+}
+
 void _background(Canvas c) {
   const rect = Rect.fromLTWH(0, 0, _size, _size);
   c.drawRect(
@@ -149,14 +183,10 @@ void _background(Canvas c) {
     const Offset(520, 470),
     430,
     Paint()
-      ..shader = ui.Gradient.radial(
-        const Offset(520, 470),
-        430,
-        [
-          const Color(0xFFB45CF5).withValues(alpha: 0.55),
-          const Color(0xFFB45CF5).withValues(alpha: 0),
-        ],
-      ),
+      ..shader = ui.Gradient.radial(const Offset(520, 470), 430, [
+        const Color(0xFFB45CF5).withValues(alpha: 0.55),
+        const Color(0xFFB45CF5).withValues(alpha: 0),
+      ]),
   );
 }
 
@@ -177,17 +207,38 @@ Future<void> _save(
   });
 }
 
+/// The whole picture: the name at the top and the cups at the bottom right,
+/// the way the app's home screen is laid out.
+void _artwork(Canvas c, {required double scale}) {
+  c.save();
+  c.translate(_size / 2, _size / 2);
+  c.scale(scale);
+  c.translate(-_size / 2, -_size / 2);
+  _wordmark(c, at: const Offset(96, 86), width: 800);
+  _cups(c, scale: 1.0, at: const Offset(560, 780));
+  c.restore();
+}
+
 void main() {
   testWidgets('draw the icon', (tester) async {
+    await tester.runAsync(() async {
+      final root = Platform.environment['FLUTTER_ROOT']!;
+      final bytes = File(
+        '$root/bin/cache/artifacts/material_fonts/Roboto-Black.ttf',
+      ).readAsBytesSync();
+      final loader = FontLoader('RobotoBlack')
+        ..addFont(Future.value(ByteData.sublistView(bytes)));
+      await loader.load();
+    });
     // iOS and legacy Android: everything in one picture, full bleed.
     await _save(tester, 'icon.png', (c) {
       _background(c);
-      _cups(c, scale: 1.4);
+      _artwork(c, scale: 1.0);
     });
-    // Android adaptive icon: the same background and the cups on their own,
-    // smaller so they stay inside the safe zone of every mask.
+    // Android adaptive icon: the same background and the artwork on its own,
+    // smaller so it stays inside the safe zone of every mask.
     await _save(tester, 'icon_background.png', _background);
-    await _save(tester, 'icon_foreground.png', (c) => _cups(c, scale: 0.98));
+    await _save(tester, 'icon_foreground.png', (c) => _artwork(c, scale: 0.68));
     expect(math.pi, greaterThan(3));
   });
 }
