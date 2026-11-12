@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../ads/ad_service.dart';
 import '../data/settings.dart';
@@ -6,8 +8,20 @@ import '../data/strings.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
 
+/// Where people can support the developer.
+const paypalDonateUrl =
+    'https://www.paypal.com/donate/?business=n44bok2%40gmail.com&currency_code=USD';
+const koFiUrl = 'https://ko-fi.com/n44bok';
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  /// Apple does not allow an app to send people to outside payment pages
+  /// (guideline 3.1.1), so the donation links are left out on iPhone. Set this
+  /// to `true` there only if Apple's rules change or a tip jar through
+  /// in-app purchases replaces them.
+  static bool get donationsVisible =>
+      kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
 
   /// Language choices. A language is always shown in its own language, so
   /// someone who ended up in the wrong one can still find theirs.
@@ -77,7 +91,83 @@ class SettingsScreen extends StatelessWidget {
               // Only where consent is required (e.g. the EU) and while ads
               // are on.
               if (!settings.adsRemoved) const _PrivacyOptionsCard(),
+              if (donationsVisible) ...[
+                const SizedBox(height: 28),
+                _SectionLabel(s['support']),
+                Text(
+                  s['support_desc'],
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _LinkCard(
+                  key: const Key('donatePayPal'),
+                  icon: Icons.payments_outlined,
+                  title: s['donate_paypal'],
+                  url: paypalDonateUrl,
+                ),
+                const SizedBox(height: 12),
+                _LinkCard(
+                  key: const Key('donateKofi'),
+                  icon: Icons.coffee_outlined,
+                  title: s['donate_kofi'],
+                  url: koFiUrl,
+                ),
+              ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A card that opens [url] in the browser.
+class _LinkCard extends StatelessWidget {
+  const _LinkCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.url,
+  });
+
+  final IconData icon;
+  final String title;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () async {
+            try {
+              await launchUrl(
+                Uri.parse(url),
+                mode: LaunchMode.externalApplication,
+              );
+            } catch (e) {
+              debugPrint('Could not open $url: $e');
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+            child: Row(
+              children: [
+                Icon(icon),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(title, style: theme.textTheme.titleMedium),
+                ),
+                const Icon(Icons.open_in_new_rounded, size: 20),
+              ],
+            ),
           ),
         ),
       ),

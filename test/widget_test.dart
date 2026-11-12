@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +16,7 @@ import 'package:party_games/purchase/purchase_service.dart';
 import 'package:party_games/screens/game_screen.dart';
 import 'package:party_games/sound/sound_service.dart';
 import 'package:party_games/screens/home_screen.dart';
+import 'package:party_games/screens/settings_screen.dart';
 import 'package:party_games/screens/setup_screen.dart';
 import 'package:party_games/screens/spy_game_screen.dart';
 import 'package:party_games/reverse/reverse_turns.dart';
@@ -3086,6 +3089,41 @@ void main() {
       );
       expect(find.text('Unlock Premium'), findsNothing);
       expect(find.text('Done'), findsOneWidget);
+    });
+  });
+
+  group('support links', () {
+    Future<void> openSettings(WidgetTester tester) async {
+      phone(tester);
+      await tester.pumpWidget(app());
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+    }
+
+    testWidgets('settings offers PayPal and Ko-fi', (tester) async {
+      await openSettings(tester);
+      await tester.ensureVisible(find.byKey(const Key('donateKofi')));
+      await tester.pump();
+      expect(find.text('SUPPORT'), findsOneWidget);
+      expect(find.text('Donate with PayPal'), findsOneWidget);
+      expect(find.text('Buy a coffee on Ko-fi'), findsOneWidget);
+      expect(paypalDonateUrl, contains('paypal.com'));
+      expect(koFiUrl, 'https://ko-fi.com/n44bok');
+    });
+
+    testWidgets('but not on iPhone, where Apple does not allow them', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        await openSettings(tester);
+        expect(find.byKey(const Key('donatePayPal')), findsNothing);
+        expect(find.byKey(const Key('donateKofi')), findsNothing);
+        expect(find.text('SUPPORT'), findsNothing);
+      } finally {
+        // Must be undone before the test ends (Flutter checks it then).
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
   });
 }
