@@ -5,12 +5,12 @@ import '../widgets/glass.dart';
 import '../widgets/glass_blob.dart';
 import '../widgets/gradient_background.dart';
 
-/// The single Premium offer: a one-time purchase that removes ads for good.
+/// The single Premium offer: one year without ads, paid once a year.
 ///
 /// MOCK: the price is a placeholder and nothing can be bought yet.
 // TODO(iap): replace with the product from in_app_purchase, showing the
 // store's localized price and using the real product id.
-const premiumPrice = r'$3.99';
+const premiumPrice = r'$4.99';
 
 const _gold = [Color(0xFFFFE08A), Color(0xFFFFA83D)];
 const _pink = Color(0xFFF06FB5);
@@ -227,7 +227,7 @@ class _OfferCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.all_inclusive_rounded, size: 32, color: _gold1),
+          const Icon(Icons.calendar_month_rounded, size: 32, color: _gold1),
           const SizedBox(width: 16),
           Expanded(
             child: Column(

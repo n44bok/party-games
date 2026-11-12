@@ -650,7 +650,7 @@ void main() {
   });
 
   group('premium', () {
-    testWidgets('opens from the header with a single one-time offer', (
+    testWidgets('opens from the header with a single yearly offer', (
       tester,
     ) async {
       phone(tester);
@@ -659,11 +659,14 @@ void main() {
       await settle(tester);
 
       expect(find.text('Premium'), findsWidgets);
-      expect(find.text('No ads, forever'), findsOneWidget);
-      expect(find.text('One payment, no subscription'), findsOneWidget);
-      expect(find.text('Premium for life'), findsOneWidget);
-      expect(find.text('One-time payment'), findsOneWidget);
-      expect(find.byKey(const Key('premium_price')), findsOneWidget);
+      expect(find.text('No ads for a year'), findsOneWidget);
+      expect(find.text('One payment a year, cancel anytime'), findsOneWidget);
+      expect(find.text('Premium for a year'), findsOneWidget);
+      expect(find.text('Billed once a year'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('premium_price'))).data,
+        r'$4.99',
+      );
 
       // The old subscription plans are gone.
       for (final gone in ['Monthly', 'Yearly', 'Lifetime']) {
