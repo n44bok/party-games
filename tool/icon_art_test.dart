@@ -44,15 +44,22 @@ double _wordmark(Canvas c, {required Offset at, required double width}) {
   return probe.height * 1.86 * k;
 }
 
-/// The same backdrop as the app's home screen (GradientBackground): deep
-/// purple at the top, lighter purple at the bottom.
+/// The backdrop of the app's home screen (GradientBackground): deep purple at
+/// the top, lighter purple at the bottom. It stays dark for a little longer
+/// than in the app, so the photo of the cups blends in without any edge.
 void _background(Canvas c) {
   const rect = Rect.fromLTWH(0, 0, _size, _size);
   c.drawRect(
     rect,
     Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFF140B2B), Color(0xFF26144A), Color(0xFF5A3A98)],
+        colors: [
+          Color(0xFF140B2B),
+          Color(0xFF1C0E3A),
+          Color(0xFF2E1A5C),
+          Color(0xFF5A3A98),
+        ],
+        stops: [0.0, 0.34, 0.68, 1.0],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(rect),
@@ -76,41 +83,59 @@ Future<void> _save(
   });
 }
 
-/// The cups of the home screen header (assets/images/party_cups.jpg).
+/// The cups of the home screen header (assets/images/party_cups.jpg), exactly
+/// as the app shows them: the photo as it is, faded out towards its edges.
 ///
-/// The photo's own dark background is keyed out (the redder and less blue a
-/// pixel, the more opaque it is), so the cups sit directly on the icon's gradient with no box
-/// or halo around them.
+/// The photo's own background is very dark purple, the same as the top of the
+/// app's gradient, so it only blends in where the icon's background is that
+/// dark too. That is why the cups sit in the top part of the icon.
 void _cupsPhoto(Canvas c, ui.Image photo, {required Offset at}) {
   final dest = Rect.fromLTWH(at.dx, at.dy, 900, 600);
+  c.saveLayer(dest, Paint());
   c.drawImageRect(
     photo,
     Rect.fromLTWH(0, 0, photo.width.toDouble(), photo.height.toDouble()),
     dest,
-    Paint()
-      ..filterQuality = FilterQuality.high
-      ..colorFilter = const ColorFilter.matrix([
-        // Colour stays as it is ...
-        1, 0, 0, 0, 0,
-        0, 1, 0, 0, 0,
-        0, 0, 1, 0, 0,
-        // ... and alpha says "not the dark purple background": the cups are
-        // red with little blue, the background is the other way round. Zero
-        // for the background, full for the cups, soft for their glow.
-        5, 0, -1.4, 0, -85,
-      ]),
+    Paint()..filterQuality = FilterQuality.high,
   );
+  c.drawRect(
+    dest,
+    Paint()
+      ..blendMode = BlendMode.dstIn
+      ..shader = const RadialGradient(
+        colors: [Colors.black, Colors.black, Colors.transparent],
+        stops: [0.0, 0.6, 1.0],
+        transform: _Ellipse(1.5),
+      ).createShader(dest),
+  );
+  c.restore();
 }
 
-/// The whole picture: the name at the top and the cups below it, the way the
-/// app's home screen is laid out.
+/// Stretches a radial gradient sideways into an ellipse.
+class _Ellipse extends GradientTransform {
+  const _Ellipse(this.stretch);
+
+  final double stretch;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    final center = bounds.center;
+    return Matrix4.identity()
+      ..translateByDouble(center.dx, center.dy, 0, 1)
+      ..scaleByDouble(stretch, 1, 1, 1)
+      ..translateByDouble(-center.dx, -center.dy, 0, 1);
+  }
+}
+
+/// The whole picture: the cups at the top, on the dark part of the background
+/// where the photo blends in as it does in the app, and the name below.
 void _artwork(Canvas c, ui.Image photo, {required double scale}) {
   c.save();
   c.translate(_size / 2, _size / 2);
   c.scale(scale);
   c.translate(-_size / 2, -_size / 2);
-  _wordmark(c, at: const Offset(96, 80), width: 800);
-  _cupsPhoto(c, photo, at: const Offset(70, 470));
+  _cupsPhoto(c, photo, at: const Offset(60, -30));
+  _wordmark(c, at: const Offset(110, 560), width: 760);
   c.restore();
 }
 
