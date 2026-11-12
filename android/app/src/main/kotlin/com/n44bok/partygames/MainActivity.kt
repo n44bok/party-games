@@ -1,4 +1,4 @@
-package com.partygames.party_games
+package com.n44bok.partygames
 
 import io.flutter.embedding.android.FlutterActivity
 

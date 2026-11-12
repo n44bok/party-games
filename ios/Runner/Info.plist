@@ -6,6 +6,10 @@
 	     chosen in code: test units unless it is a release build. -->
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-6734526134116766~5326854925</string>
+	<!-- The app only uses the encryption that comes with the system (HTTPS), so
+	     App Store Connect does not need to ask about export compliance. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>This lets us show you ads that are more relevant to you. You can say no and still use every game.</string>
 	<key>NSMicrophoneUsageDescription</key>
