@@ -28,10 +28,17 @@ class AudioSoundService implements SoundService {
   Future<void> _configure() async {
     if (!isSupported) return;
     try {
+      // iPhone: following the silent switch means the "ambient" audio
+      // category, which already mixes with other apps' audio (audioplayers
+      // refuses to combine `respectSilence` with `mixWithOthers`). Android has
+      // no silent switch; there the sounds mix with the music.
+      final iOS = defaultTargetPlatform == TargetPlatform.iOS;
       await AudioPlayer.global.setAudioContext(
         AudioContextConfig(
-          focus: AudioContextConfigFocus.mixWithOthers,
-          respectSilence: true,
+          focus: iOS
+              ? AudioContextConfigFocus.gain
+              : AudioContextConfigFocus.mixWithOthers,
+          respectSilence: iOS,
         ).build(),
       );
     } catch (e) {
