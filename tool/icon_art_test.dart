@@ -76,46 +76,28 @@ Future<void> _save(
   });
 }
 
-/// The cups of the home screen header (assets/images/party_cups.jpg), faded
-/// into the background with the same radial mask the app uses.
+/// The cups of the home screen header (assets/images/party_cups.jpg).
+///
+/// The photo's own dark background is keyed out (the redder a pixel, the more
+/// opaque it is), so the cups sit directly on the icon's gradient with no box
+/// or halo around them.
 void _cupsPhoto(Canvas c, ui.Image photo, {required Offset at}) {
   final dest = Rect.fromLTWH(at.dx, at.dy, 900, 600);
-  c.saveLayer(dest, Paint());
   c.drawImageRect(
     photo,
     Rect.fromLTWH(0, 0, photo.width.toDouble(), photo.height.toDouble()),
     dest,
-    Paint()..filterQuality = FilterQuality.high,
-  );
-  // Fade the photo out in an ellipse around the cups, so only they and a soft
-  // shadow remain on the background.
-  c.drawRect(
-    dest,
     Paint()
-      ..blendMode = BlendMode.dstIn
-      ..shader = const RadialGradient(
-        colors: [Colors.black, Colors.black, Colors.transparent],
-        stops: [0.0, 0.74, 1.0],
-        transform: _Ellipse(1.5),
-      ).createShader(dest),
+      ..filterQuality = FilterQuality.high
+      ..colorFilter = const ColorFilter.matrix([
+        // Colour stays as it is ...
+        1, 0, 0, 0, 0,
+        0, 1, 0, 0, 0,
+        0, 0, 1, 0, 0,
+        // ... and alpha grows with the red channel: 0 up to 28, full at 79.
+        5, 0, 0, 0, -140,
+      ]),
   );
-  c.restore();
-}
-
-/// Stretches a radial gradient sideways into an ellipse.
-class _Ellipse extends GradientTransform {
-  const _Ellipse(this.stretch);
-
-  final double stretch;
-
-  @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
-    final center = bounds.center;
-    return Matrix4.identity()
-      ..translateByDouble(center.dx, center.dy, 0, 1)
-      ..scaleByDouble(stretch, 1, 1, 1)
-      ..translateByDouble(-center.dx, -center.dy, 0, 1);
-  }
 }
 
 /// The whole picture: the name at the top and the cups below it, the way the
