@@ -78,8 +78,8 @@ Future<void> _save(
 
 /// The cups of the home screen header (assets/images/party_cups.jpg).
 ///
-/// The photo's own dark background is keyed out (the redder a pixel, the more
-/// opaque it is), so the cups sit directly on the icon's gradient with no box
+/// The photo's own dark background is keyed out (the redder and less blue a
+/// pixel, the more opaque it is), so the cups sit directly on the icon's gradient with no box
 /// or halo around them.
 void _cupsPhoto(Canvas c, ui.Image photo, {required Offset at}) {
   final dest = Rect.fromLTWH(at.dx, at.dy, 900, 600);
@@ -94,8 +94,10 @@ void _cupsPhoto(Canvas c, ui.Image photo, {required Offset at}) {
         1, 0, 0, 0, 0,
         0, 1, 0, 0, 0,
         0, 0, 1, 0, 0,
-        // ... and alpha grows with the red channel: 0 up to 28, full at 79.
-        5, 0, 0, 0, -140,
+        // ... and alpha says "not the dark purple background": the cups are
+        // red with little blue, the background is the other way round. Zero
+        // for the background, full for the cups, soft for their glow.
+        5, 0, -1.4, 0, -85,
       ]),
   );
 }
