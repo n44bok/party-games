@@ -1,70 +1,14 @@
-// Draws the app icon artwork into assets/icon/*.png. Not part of the test suite:
-// run it with `flutter test tool/icon_art_test.dart`, then
-// `dart run flutter_launcher_icons` to build every size from the PNGs.
+// Builds the app icon artwork in assets/icon/ from the logo
+// (assets/icon/logo_source.png). Not part of the test suite: run it with
+// `flutter test tool/icon_art_test.dart`, then `dart run flutter_launcher_icons`
+// to build every size from the PNGs.
 import 'dart:io';
-import 'dart:math' as math;
-import 'dart:typed_data' show ByteData;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
 
 const _size = 1024.0;
-
-/// "Party" in white and "Games" in the brand gradient, like the app's header.
-/// Returns the height used, so the cups can sit below it.
-double _wordmark(Canvas c, {required Offset at, required double width}) {
-  TextPainter line(String text, Paint? foreground) => TextPainter(
-    text: TextSpan(
-      text: text,
-      style: TextStyle(
-        fontFamily: 'RobotoBlack',
-        fontSize: 300,
-        height: 0.98,
-        letterSpacing: -6,
-        color: foreground == null ? Colors.white : null,
-        foreground: foreground,
-      ),
-    ),
-    textDirection: TextDirection.ltr,
-  )..layout();
-  final probe = line('Games', null);
-  final k = width / probe.width;
-  c.save();
-  c.translate(at.dx, at.dy);
-  c.scale(k);
-  line('Party', null).paint(c, Offset.zero);
-  final gradient = Paint()
-    ..shader = const LinearGradient(
-      colors: [Color(0xFFA66BFF), Color(0xFFF06FB5)],
-    ).createShader(Rect.fromLTWH(0, 0, probe.width, probe.height));
-  line('Games', gradient).paint(c, Offset(0, probe.height * 0.86));
-  c.restore();
-  return probe.height * 1.86 * k;
-}
-
-/// The backdrop of the app's home screen (GradientBackground): deep purple at
-/// the top, lighter purple at the bottom. It stays dark for a little longer
-/// than in the app, so the photo of the cups blends in without any edge.
-void _background(Canvas c) {
-  const rect = Rect.fromLTWH(0, 0, _size, _size);
-  c.drawRect(
-    rect,
-    Paint()
-      ..shader = const LinearGradient(
-        colors: [
-          Color(0xFF140B2B),
-          Color(0xFF1C0E3A),
-          Color(0xFF2E1A5C),
-          Color(0xFF5A3A98),
-        ],
-        stops: [0.0, 0.34, 0.68, 1.0],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(rect),
-  );
-}
 
 Future<void> _save(
   WidgetTester tester,
@@ -83,91 +27,86 @@ Future<void> _save(
   });
 }
 
-/// The cups of the home screen header (assets/images/party_cups.jpg), exactly
-/// as the app shows them: the photo as it is, faded out towards its edges.
-///
-/// The photo's own background is very dark purple, the same as the top of the
-/// app's gradient, so it only blends in where the icon's background is that
-/// dark too. That is why the cups sit in the top part of the icon.
-void _cupsPhoto(Canvas c, ui.Image photo, {required Offset at}) {
-  final dest = Rect.fromLTWH(at.dx, at.dy, 900, 600);
-  c.saveLayer(dest, Paint());
+/// Draws [logo] into the square [dest].
+void _logo(Canvas c, ui.Image logo, Rect dest, {Paint? paint}) {
   c.drawImageRect(
-    photo,
-    Rect.fromLTWH(0, 0, photo.width.toDouble(), photo.height.toDouble()),
+    logo,
+    Rect.fromLTWH(0, 0, logo.width.toDouble(), logo.height.toDouble()),
     dest,
-    Paint()..filterQuality = FilterQuality.high,
+    (paint ?? Paint())..filterQuality = FilterQuality.high,
   );
-  c.drawRect(
-    dest,
-    Paint()
-      ..blendMode = BlendMode.dstIn
-      ..shader = const RadialGradient(
-        colors: [Colors.black, Colors.black, Colors.transparent],
-        stops: [0.0, 0.6, 1.0],
-        transform: _Ellipse(1.5),
-      ).createShader(dest),
-  );
-  c.restore();
-}
-
-/// Stretches a radial gradient sideways into an ellipse.
-class _Ellipse extends GradientTransform {
-  const _Ellipse(this.stretch);
-
-  final double stretch;
-
-  @override
-  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
-    final center = bounds.center;
-    return Matrix4.identity()
-      ..translateByDouble(center.dx, center.dy, 0, 1)
-      ..scaleByDouble(stretch, 1, 1, 1)
-      ..translateByDouble(-center.dx, -center.dy, 0, 1);
-  }
-}
-
-/// The whole picture: the cups at the top, on the dark part of the background
-/// where the photo blends in as it does in the app, and the name below.
-void _artwork(Canvas c, ui.Image photo, {required double scale}) {
-  c.save();
-  c.translate(_size / 2, _size / 2);
-  c.scale(scale);
-  c.translate(-_size / 2, -_size / 2);
-  _cupsPhoto(c, photo, at: const Offset(60, -30));
-  _wordmark(c, at: const Offset(110, 560), width: 760);
-  c.restore();
 }
 
 void main() {
-  testWidgets('draw the icon', (tester) async {
-    await tester.runAsync(() async {
-      final root = Platform.environment['FLUTTER_ROOT']!;
-      final bytes = File(
-        '$root/bin/cache/artifacts/material_fonts/Roboto-Black.ttf',
-      ).readAsBytesSync();
-      final loader = FontLoader('RobotoBlack')
-        ..addFont(Future.value(ByteData.sublistView(bytes)));
-      await loader.load();
-    });
-    final photo = (await tester.runAsync(() async {
-      final bytes = File('assets/images/party_cups.jpg').readAsBytesSync();
+  testWidgets('build the icon from the logo', (tester) async {
+    final logo = (await tester.runAsync(() async {
+      final bytes = File('assets/icon/logo_source.png').readAsBytesSync();
       final codec = await ui.instantiateImageCodec(bytes);
       return (await codec.getNextFrame()).image;
     }))!;
-    // iOS and legacy Android: everything in one picture, full bleed.
-    await _save(tester, 'icon.png', (c) {
-      _background(c);
-      _artwork(c, photo, scale: 1.0);
+    const full = Rect.fromLTWH(0, 0, _size, _size);
+
+    // iOS and old Android: the logo itself, full bleed.
+    await _save(tester, 'icon.png', (c) => _logo(c, logo, full));
+
+    // Android adaptive icon. The launcher cuts a circle or a rounded square
+    // out of the middle, so the logo goes in smaller (its text and cards then
+    // stay inside every mask) and the margin around it is a plain wash in the
+    // logo's own colours: blue at the top left, purple, pink at the right and
+    // orange in the bottom right corner (colours taken from the logo's edges).
+    await _save(tester, 'icon_background.png', (c) {
+      Color rgb(int r, int g, int b) => Color.fromARGB(255, r, g, b);
+      c.drawRect(
+        full,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [rgb(43, 28, 228), rgb(56, 3, 158), rgb(115, 4, 177)],
+          ).createShader(full),
+      );
+      c.saveLayer(full, Paint());
+      c.drawRect(
+        full,
+        Paint()
+          ..shader = LinearGradient(
+            colors: [rgb(170, 49, 251), rgb(206, 6, 186), rgb(252, 120, 60)],
+          ).createShader(full),
+      );
+      c.drawRect(
+        full,
+        Paint()
+          ..blendMode = BlendMode.dstIn
+          ..shader = const LinearGradient(
+            colors: [Colors.transparent, Colors.black],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ).createShader(full),
+      );
+      c.restore();
+      c.drawRect(
+        full,
+        Paint()
+          ..shader = ui.Gradient.radial(
+            const Offset(_size, _size * 0.62),
+            _size * 0.55,
+            [
+              rgb(255, 10, 140).withValues(alpha: 0.7),
+              rgb(255, 10, 140).withValues(alpha: 0),
+            ],
+          ),
+      );
     });
-    // Android adaptive icon: the same background and the artwork on its own,
-    // smaller so it stays inside the safe zone of every mask.
-    await _save(tester, 'icon_background.png', _background);
     await _save(
       tester,
       'icon_foreground.png',
-      (c) => _artwork(c, photo, scale: 0.68),
+      (c) => _logo(
+        c,
+        logo,
+        Rect.fromCenter(
+          center: const Offset(_size / 2, _size / 2),
+          width: _size * 0.74,
+          height: _size * 0.74,
+        ),
+      ),
     );
-    expect(math.pi, greaterThan(3));
   });
 }
