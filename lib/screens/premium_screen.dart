@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../data/settings.dart';
 import '../data/strings.dart';
+import '../purchase/purchase_service.dart';
 import '../widgets/glass.dart';
 import '../widgets/glass_blob.dart';
 import '../widgets/gradient_background.dart';
 
-/// The single Premium offer: one year without ads, paid once a year.
+/// The single Premium offer: one year without ads, as an auto-renewing
+/// subscription.
 ///
-/// MOCK: the price is a placeholder and nothing can be bought yet.
-// TODO(iap): replace with the product from in_app_purchase, showing the
-// store's localized price and using the real product id.
+/// The price shown comes from the store (in the person's currency). This
+/// dollar price is only what is shown when the store cannot be asked.
 const premiumPrice = r'$4.99';
+
+/// The pages the subscription screen must link to.
+const privacyPolicyUrl =
+    'https://n44bok.github.io/party-games/privacy-policy.html';
+const termsOfUseUrl =
+    'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 
 const _gold = [Color(0xFFFFE08A), Color(0xFFFFA83D)];
 const _pink = Color(0xFFF06FB5);
@@ -18,17 +27,58 @@ const _pink = Color(0xFFF06FB5);
 class PremiumScreen extends StatelessWidget {
   const PremiumScreen({super.key});
 
-  void _unavailable(BuildContext context) {
-    final s = Strings.of(context);
+  void _say(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(s['premium_unavailable'])));
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Shows what came of a purchase or a restore; closes the screen when
+  /// Premium is on.
+  void _report(BuildContext context, PurchaseResult result) {
+    final s = Strings.of(context);
+    final navigator = Navigator.of(context);
+    switch (result) {
+      case PurchaseResult.purchased:
+        _say(context, s['premium_thanks']);
+        navigator.maybePop();
+      case PurchaseResult.restored:
+        _say(context, s['premium_restored']);
+        navigator.maybePop();
+      case PurchaseResult.nothingToRestore:
+        _say(context, s['premium_nothing']);
+      case PurchaseResult.cancelled:
+        break;
+      case PurchaseResult.failed:
+        _say(context, s['premium_error']);
+      case PurchaseResult.unavailable:
+        _say(context, s['premium_unavailable']);
+    }
+  }
+
+  Future<void> _buy(BuildContext context) async {
+    final service = PurchaseScope.read(context);
+    if (service.busy) return;
+    final result = await service.buy();
+    if (context.mounted) _report(context, result);
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    final service = PurchaseScope.read(context);
+    if (service.busy) return;
+    final result = await service.restore();
+    if (context.mounted) _report(context, result);
   }
 
   @override
   Widget build(BuildContext context) {
     final s = Strings.of(context);
     final theme = Theme.of(context);
+    final store = PurchaseScope.of(context);
+    final settings = SettingsScope.of(context);
+    final price = store.price ?? premiumPrice;
+    final active = settings.adsRemoved;
+    final until = settings.premiumUntil;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -121,7 +171,45 @@ class PremiumScreen extends StatelessWidget {
                       _OfferCard(
                         title: s['offer_title'],
                         caption: s['offer_caption'],
-                        price: premiumPrice,
+                        price: price,
+                      ),
+                      if (active && until != null) ...[
+                        const SizedBox(height: 14),
+                        Text(
+                          s.format('premium_active_until', {
+                            'date': MaterialLocalizations.of(context)
+                                .formatMediumDate(until),
+                          }),
+                          key: const Key('premium_active_until'),
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: _gold1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 18),
+                      Text(
+                        s.format('premium_terms', {'price': price}),
+                        key: const Key('premium_terms'),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _LinkButton(
+                            label: s['premium_privacy'],
+                            url: privacyPolicyUrl,
+                          ),
+                          _LinkButton(
+                            label: s['premium_eula'],
+                            url: termsOfUseUrl,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -132,13 +220,24 @@ class PremiumScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    GradientButton(
-                      label: s['unlock'],
-                      height: 60,
-                      onPressed: () => _unavailable(context),
+                    // Nothing to do while a purchase is going on.
+                    IgnorePointer(
+                      ignoring: store.busy,
+                      child: Opacity(
+                        opacity: store.busy ? 0.6 : 1,
+                        child: GradientButton(
+                          key: const Key('premium_unlock'),
+                          label: active ? s['done'] : s['unlock'],
+                          height: 60,
+                          onPressed: active
+                              ? () => Navigator.of(context).maybePop()
+                              : () => _buy(context),
+                        ),
+                      ),
                     ),
                     TextButton(
-                      onPressed: () => _unavailable(context),
+                      key: const Key('premium_restore'),
+                      onPressed: store.busy ? null : () => _restore(context),
                       child: Text(
                         s['restore'],
                         style: TextStyle(
@@ -263,3 +362,36 @@ class _OfferCard extends StatelessWidget {
 }
 
 const _gold1 = Color(0xFFFFC857);
+
+/// A small underlined link that opens [url] in the browser.
+class _LinkButton extends StatelessWidget {
+  const _LinkButton({required this.label, required this.url});
+
+  final String label;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () async {
+        try {
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        } catch (e) {
+          debugPrint('Could not open $url: $e');
+        }
+      },
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          decoration: TextDecoration.underline,
+          color: Color(0xFFC9A8FF),
+        ),
+      ),
+    );
+  }
+}

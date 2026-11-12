@@ -14,17 +14,21 @@ class SettingsController extends ChangeNotifier {
     SharedPreferences? prefs,
     Locale? locale,
     bool haptics = true,
-    bool adsRemoved = false,
+    DateTime? premiumUntil,
     bool timeWarning = true,
+    DateTime Function()? clock,
   }) : _prefs = prefs,
        _locale = locale,
        _haptics = haptics,
-       _adsRemoved = adsRemoved,
-       _timeWarning = timeWarning;
+       _premiumUntil = premiumUntil,
+       _timeWarning = timeWarning,
+       _clock = clock ?? DateTime.now {
+    _premiumActive = _isPremiumNow;
+  }
 
   static const _localeKey = 'locale';
   static const _hapticsKey = 'haptics';
-  static const _adsRemovedKey = 'adsRemoved';
+  static const _premiumUntilKey = 'premiumUntil';
   static const _timeWarningKey = 'timeWarning';
 
   /// Longest own Spy word.
@@ -40,7 +44,7 @@ class SettingsController extends ChangeNotifier {
         prefs: prefs,
         locale: code == null ? null : Locale(code),
         haptics: prefs.getBool(_hapticsKey) ?? true,
-        adsRemoved: prefs.getBool(_adsRemovedKey) ?? false,
+        premiumUntil: _readDate(prefs.getInt(_premiumUntilKey)),
         timeWarning: prefs.getBool(_timeWarningKey) ?? true,
       );
     } catch (e) {
@@ -49,11 +53,16 @@ class SettingsController extends ChangeNotifier {
     }
   }
 
+  static DateTime? _readDate(int? millis) =>
+      millis == null ? null : DateTime.fromMillisecondsSinceEpoch(millis);
+
   final SharedPreferences? _prefs;
+  final DateTime Function() _clock;
 
   Locale? _locale;
   bool _haptics;
-  bool _adsRemoved;
+  DateTime? _premiumUntil;
+  late bool _premiumActive;
   bool _timeWarning;
 
   /// `null` means "follow the system language".
@@ -62,14 +71,35 @@ class SettingsController extends ChangeNotifier {
   /// Whether a light vibration accompanies card changes.
   bool get haptics => _haptics;
 
-  /// True once Premium has been bought: no ad is requested or shown.
-  bool get adsRemoved => _adsRemoved;
+  /// How long Premium runs, or `null` if it never was bought.
+  DateTime? get premiumUntil => _premiumUntil;
 
-  Future<void> setAdsRemoved(bool value) async {
-    if (value == _adsRemoved) return;
-    _adsRemoved = value;
+  bool get _isPremiumNow {
+    final until = _premiumUntil;
+    return until != null && until.isAfter(_clock());
+  }
+
+  /// True while Premium is active: no ad is requested or shown.
+  bool get adsRemoved => _isPremiumNow;
+
+  /// The store confirmed Premium; it runs until [until] (later than what was
+  /// known, never earlier).
+  Future<void> grantPremium(DateTime until) async {
+    final current = _premiumUntil;
+    if (current != null && !until.isAfter(current)) return;
+    _premiumUntil = until;
+    _premiumActive = _isPremiumNow;
     notifyListeners();
-    await _prefs?.setBool(_adsRemovedKey, value);
+    await _prefs?.setInt(_premiumUntilKey, until.millisecondsSinceEpoch);
+  }
+
+  /// Call when the app comes back to the foreground: Premium may have run out
+  /// meanwhile, and then the ads must come back.
+  void recheckPremium() {
+    final now = _isPremiumNow;
+    if (now == _premiumActive) return;
+    _premiumActive = now;
+    notifyListeners();
   }
 
   /// Whether Spy warns the players shortly before the time runs out.

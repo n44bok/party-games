@@ -7,6 +7,8 @@ import 'data/content_repository.dart';
 import 'data/content_scope.dart';
 import 'data/settings.dart';
 import 'data/strings.dart';
+import 'purchase/purchase_service.dart';
+import 'purchase/store_purchase_service.dart';
 import 'reverse/record_voice_service.dart';
 import 'reverse/voice_service.dart';
 import 'sound/audio_sound_service.dart';
@@ -17,18 +19,23 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = await SettingsController.load();
   final ads = GoogleAdService(settings);
+  final purchases = StorePurchaseService(settings);
   runApp(
     PartyGamesApp(
       settings: settings,
       ads: ads,
       sounds: AudioSoundService(),
       voice: RecordVoiceService(),
+      purchases: purchases,
       scrollHint: true,
     ),
   );
   // The consent and tracking questions are shown over the app, so they wait
   // until it is on screen. The app never waits for the ads SDK.
-  WidgetsBinding.instance.addPostFrameCallback((_) => ads.initialize());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    ads.initialize();
+    purchases.initialize();
+  });
 }
 
 class PartyGamesApp extends StatefulWidget {
@@ -39,6 +46,7 @@ class PartyGamesApp extends StatefulWidget {
     this.ads = const NoAdService(),
     this.sounds = const NoSoundService(),
     this.voice = const NoVoiceService(),
+    this.purchases,
     this.scrollHint = false,
   });
 
@@ -58,6 +66,9 @@ class PartyGamesApp extends StatefulWidget {
   /// unless provided.
   final VoiceService voice;
 
+  /// The App Store / Google Play for Premium; no store unless provided.
+  final PurchaseService? purchases;
+
   /// Auto-scroll the home screen once to show that it scrolls. Off by
   /// default so tests are not disturbed by a moving grid.
   final bool scrollHint;
@@ -66,12 +77,28 @@ class PartyGamesApp extends StatefulWidget {
   State<PartyGamesApp> createState() => _PartyGamesAppState();
 }
 
-class _PartyGamesAppState extends State<PartyGamesApp> {
+class _PartyGamesAppState extends State<PartyGamesApp>
+    with WidgetsBindingObserver {
   late final SettingsController _settings =
       widget.settings ?? SettingsController();
+  late final PurchaseService _purchases =
+      widget.purchases ?? NoPurchaseService();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Premium may have run out while the app was in the background.
+    if (state == AppLifecycleState.resumed) _settings.recheckPremium();
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Only dispose what we created ourselves.
     if (widget.settings == null) _settings.dispose();
     super.dispose();
@@ -121,11 +148,14 @@ class _PartyGamesAppState extends State<PartyGamesApp> {
           service: widget.sounds,
           child: VoiceScope(
             service: widget.voice,
-            child: AdScope(
-              service: widget.ads,
-              child: ContentScope(
-                repository: widget.repository ?? ContentRepository(),
-                child: child!,
+            child: PurchaseScope(
+              service: _purchases,
+              child: AdScope(
+                service: widget.ads,
+                child: ContentScope(
+                  repository: widget.repository ?? ContentRepository(),
+                  child: child!,
+                ),
               ),
             ),
           ),

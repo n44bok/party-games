@@ -9,6 +9,8 @@ import 'package:party_games/main.dart';
 import 'package:party_games/mafia/mafia_game.dart';
 import 'package:party_games/mafia/mafia_round.dart';
 import 'package:party_games/models/game_mode.dart';
+import 'package:party_games/purchase/premium_lease.dart';
+import 'package:party_games/purchase/purchase_service.dart';
 import 'package:party_games/screens/game_screen.dart';
 import 'package:party_games/sound/sound_service.dart';
 import 'package:party_games/screens/home_screen.dart';
@@ -116,6 +118,61 @@ class FakeAdService implements AdService {
 
   @override
   void onRoundFinished() => rounds++;
+}
+
+/// A store that answers with [result]; a successful purchase turns Premium on
+/// for a year, like the real one.
+class FakePurchaseService extends PurchaseService {
+  FakePurchaseService(
+    this.settings, {
+    this.result = PurchaseResult.purchased,
+    this.storePrice = '€4,99',
+    this.found = true,
+  });
+
+  final SettingsController settings;
+  PurchaseResult result;
+  final String storePrice;
+  final bool found;
+  int bought = 0;
+  int restored = 0;
+  bool _busy = false;
+
+  @override
+  String? get price => found ? storePrice : null;
+
+  @override
+  bool get canBuy => found;
+
+  @override
+  bool get busy => _busy;
+
+  Future<PurchaseResult> _answer() async {
+    _busy = true;
+    notifyListeners();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    if (result == PurchaseResult.purchased ||
+        result == PurchaseResult.restored) {
+      await settings.grantPremium(
+        DateTime.now().add(const Duration(days: 365)),
+      );
+    }
+    _busy = false;
+    notifyListeners();
+    return result;
+  }
+
+  @override
+  Future<PurchaseResult> buy() {
+    bought++;
+    return _answer();
+  }
+
+  @override
+  Future<PurchaseResult> restore() {
+    restored++;
+    return _answer();
+  }
 }
 
 /// Counts the sounds that would have been played.
@@ -739,12 +796,42 @@ void main() {
       expect(pacer.onRound(), isTrue); // again after 2 rounds
     });
 
-    test('"ads removed" is saved and restored', () async {
+    test('Premium is saved and restored', () async {
       SharedPreferences.setMockInitialValues({});
       final first = await SettingsController.load();
       expect(first.adsRemoved, isFalse);
-      await first.setAdsRemoved(true);
-      expect((await SettingsController.load()).adsRemoved, isTrue);
+      final until = DateTime.now().add(const Duration(days: 30));
+      await first.grantPremium(until);
+      expect(first.adsRemoved, isTrue);
+      final second = await SettingsController.load();
+      expect(second.adsRemoved, isTrue);
+      expect(
+        second.premiumUntil!.millisecondsSinceEpoch,
+        until.millisecondsSinceEpoch,
+      );
+    });
+
+    test('Premium runs out, and a later confirmation extends it', () async {
+      var now = DateTime(2027, 1, 1);
+      final settings = SettingsController(clock: () => now);
+      await settings.grantPremium(DateTime(2027, 1, 10));
+      expect(settings.adsRemoved, isTrue);
+
+      // An earlier date never shortens it.
+      await settings.grantPremium(DateTime(2027, 1, 5));
+      expect(settings.premiumUntil, DateTime(2027, 1, 10));
+
+      var notified = 0;
+      settings.addListener(() => notified++);
+      now = DateTime(2027, 1, 11);
+      expect(settings.adsRemoved, isFalse);
+      settings.recheckPremium(); // the app came back to the foreground
+      expect(notified, 1); // so the ads can return
+      settings.recheckPremium();
+      expect(notified, 1);
+
+      await settings.grantPremium(DateTime(2028, 1, 1)); // renewed
+      expect(settings.adsRemoved, isTrue);
     });
 
     testWidgets('the home screen shows the banner', (tester) async {
@@ -2840,9 +2927,165 @@ void main() {
       await openSettings(
         tester,
         ads,
-        settings: SettingsController(adsRemoved: true),
+        settings: SettingsController(
+          premiumUntil: DateTime.now().add(const Duration(days: 30)),
+        ),
       );
       expect(find.byKey(const Key('privacyOptions')), findsNothing);
+    });
+  });
+
+  group('premium purchases', () {
+    Future<(SettingsController, FakePurchaseService)> openPremium(
+      WidgetTester tester, {
+      PurchaseResult result = PurchaseResult.purchased,
+      bool found = true,
+      DateTime? premiumUntil,
+    }) async {
+      phone(tester);
+      final settings = SettingsController(premiumUntil: premiumUntil);
+      final store = FakePurchaseService(settings, result: result, found: found);
+      await tester.pumpWidget(
+        PartyGamesApp(
+          repository: FakeRepository(),
+          settings: settings,
+          purchases: store,
+        ),
+      );
+      await tester.tap(find.byTooltip('Premium'));
+      await settle(tester);
+      return (settings, store);
+    }
+
+    test('what the store confirms is trusted for a while', () {
+      final now = DateTime(2027, 3, 1);
+      // iPhone: a year from the transaction, plus a few days of grace.
+      expect(
+        premiumUntil(
+          now: now,
+          isAndroid: false,
+          transactionDate: DateTime(2027, 2, 1),
+        ),
+        DateTime(2027, 2, 1).add(const Duration(days: 368)),
+      );
+      // Android: the store listed it as active just now: a week.
+      expect(
+        premiumUntil(now: now, isAndroid: true),
+        now.add(const Duration(days: 7)),
+      );
+    });
+
+    testWidgets('shows the price from the store, with the terms', (
+      tester,
+    ) async {
+      await openPremium(tester);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('premium_price'))).data,
+        '€4,99',
+      );
+      final terms = tester.widget<Text>(find.byKey(const Key('premium_terms')));
+      expect(terms.data, contains('€4,99'));
+      expect(terms.data, contains('renews automatically'));
+      expect(terms.data, contains('24 hours'));
+      expect(find.text('Privacy Policy'), findsOneWidget);
+      expect(find.text('Terms of Use'), findsOneWidget);
+    });
+
+    testWidgets('falls back to the placeholder price without the store', (
+      tester,
+    ) async {
+      await openPremium(tester, found: false);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('premium_price'))).data,
+        r'$4.99',
+      );
+    });
+
+    testWidgets('buying turns Premium on and closes the screen', (
+      tester,
+    ) async {
+      final (settings, store) = await openPremium(tester);
+      expect(settings.adsRemoved, isFalse);
+      await tester.tap(find.byKey(const Key('premium_unlock')));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester);
+
+      expect(store.bought, 1);
+      expect(settings.adsRemoved, isTrue);
+      expect(find.text('Thank you! Premium is active.'), findsOneWidget);
+      expect(find.byKey(const Key('premium_unlock')), findsNothing);
+    });
+
+    testWidgets('backing out of the purchase changes nothing', (tester) async {
+      final (settings, store) = await openPremium(
+        tester,
+        result: PurchaseResult.cancelled,
+      );
+      await tester.tap(find.byKey(const Key('premium_unlock')));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester);
+      expect(store.bought, 1);
+      expect(settings.adsRemoved, isFalse);
+      expect(find.byKey(const Key('premium_unlock')), findsOneWidget);
+      expect(find.textContaining('Something went wrong'), findsNothing);
+    });
+
+    testWidgets('a failed purchase says so', (tester) async {
+      final (settings, _) = await openPremium(
+        tester,
+        result: PurchaseResult.failed,
+      );
+      await tester.tap(find.byKey(const Key('premium_unlock')));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester);
+      expect(settings.adsRemoved, isFalse);
+      expect(
+        find.text('Something went wrong. Please try again.'),
+        findsWidgets,
+      );
+    });
+
+    testWidgets('restoring brings Premium back', (tester) async {
+      final (settings, store) = await openPremium(
+        tester,
+        result: PurchaseResult.restored,
+      );
+      await tester.ensureVisible(find.byKey(const Key('premium_restore')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('premium_restore')));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester);
+      expect(store.restored, 1);
+      expect(settings.adsRemoved, isTrue);
+      expect(find.text('Premium restored.'), findsOneWidget);
+    });
+
+    testWidgets('a restore that finds nothing says so', (tester) async {
+      await openPremium(tester, result: PurchaseResult.nothingToRestore);
+      await tester.ensureVisible(find.byKey(const Key('premium_restore')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('premium_restore')));
+      await settle(tester);
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester);
+      expect(find.text('No earlier purchase was found.'), findsWidgets);
+    });
+
+    testWidgets('an active Premium shows until when, and a Done button', (
+      tester,
+    ) async {
+      await openPremium(tester, premiumUntil: DateTime(2099, 6, 15));
+      expect(find.byKey(const Key('premium_active_until')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('premium_active_until'))).data,
+        startsWith('Premium is active until'),
+      );
+      expect(find.text('Unlock Premium'), findsNothing);
+      expect(find.text('Done'), findsOneWidget);
     });
   });
 }
