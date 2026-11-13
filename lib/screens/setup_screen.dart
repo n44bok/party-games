@@ -71,6 +71,7 @@ class _SetupScreenState extends State<SetupScreen> {
   bool _doctor = true;
   bool _detective = true;
   bool _appRunsNights = true;
+  bool _atmosphere = true;
 
   /// The time warning is part of this game's options; the choice is
   /// remembered between games.
@@ -194,6 +195,7 @@ class _SetupScreenState extends State<SetupScreen> {
             doctor: _doctor,
             detective: _detective,
             appRunsNights: _appRunsNights,
+            atmosphere: _atmosphere,
             duration: Duration(minutes: _minutes),
           ),
           GameMode.reverseSong => ReverseSongScreen(
@@ -557,6 +559,15 @@ class _SetupScreenState extends State<SetupScreen> {
         switchKey: const Key('nightsSwitch'),
         value: _appRunsNights,
         onChanged: (v) => setState(() => _appRunsNights = v),
+      ),
+      const SizedBox(height: 14),
+      _OptionSwitchRow(
+        icon: Icons.music_note_rounded,
+        title: s['atmosphere_option'],
+        description: s['atmosphere_option_desc'],
+        switchKey: const Key('atmosphereSwitch'),
+        value: _atmosphere,
+        onChanged: (v) => setState(() => _atmosphere = v),
       ),
       const SizedBox(height: 24),
       header(Icons.timer_outlined, s['timer']),

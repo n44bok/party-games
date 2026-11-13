@@ -24,6 +24,8 @@ class AudioSoundService implements SoundService {
   // One player per sound, so one never cuts the other off.
   final _warning = AudioPlayer();
   final _timeUp = AudioPlayer();
+  final _ambience = AudioPlayer();
+  final _morning = AudioPlayer();
 
   Future<void> _configure() async {
     if (!isSupported) return;
@@ -61,4 +63,30 @@ class AudioSoundService implements SoundService {
 
   @override
   void playTimeUp() => _play(_timeUp, 'sounds/time_up.wav');
+
+  @override
+  Future<void> startNightAmbience() async {
+    if (!isSupported) return;
+    try {
+      await _ambience.stop();
+      await _ambience.setReleaseMode(ReleaseMode.loop);
+      await _ambience.setVolume(0.5);
+      await _ambience.play(AssetSource('sounds/night_ambience.wav'));
+    } catch (e) {
+      debugPrint('Could not play the night ambience: $e');
+    }
+  }
+
+  @override
+  Future<void> stopNightAmbience() async {
+    if (!isSupported) return;
+    try {
+      await _ambience.stop();
+    } catch (e) {
+      debugPrint('Could not stop the night ambience: $e');
+    }
+  }
+
+  @override
+  void playMorning() => _play(_morning, 'sounds/morning.wav');
 }

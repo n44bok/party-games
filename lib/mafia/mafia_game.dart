@@ -33,6 +33,18 @@ class MafiaGame {
 
   bool _roleAlive(MafiaRole role) => alive.any((i) => round.roleOf(i) == role);
 
+  /// Who the doctor saved last night. By the rules the doctor may not save
+  /// the same player two nights in a row.
+  int? lastSaved;
+
+  /// Whom the doctor may choose tonight: any living player except the one
+  /// saved the night before. (Asked even when the doctor is dead, so that
+  /// nobody can tell.)
+  List<int> get doctorChoices => [
+    for (final i in alive)
+      if (i != lastSaved || alive.length == 1) i,
+  ];
+
   bool get doctorAlive => _roleAlive(MafiaRole.doctor);
   bool get detectiveAlive => _roleAlive(MafiaRole.detective);
 
@@ -41,6 +53,7 @@ class MafiaGame {
   /// doctor saves nobody (the app still asks, so that nobody can tell).
   int? resolveNight({required int victim, int? saved}) {
     assert(isAlive(victim));
+    lastSaved = saved;
     if (saved == victim && doctorAlive) return null;
     _alive.remove(victim);
     return victim;
@@ -51,6 +64,9 @@ class MafiaGame {
     assert(isAlive(player));
     _alive.remove(player);
   }
+
+  /// Brings [player] back in (the host marked them out by mistake).
+  void restore(int player) => _alive.add(player);
 
   /// Whether [player] is mafia (what the detective finds out).
   bool isMafia(int player) => round.roleOf(player).isMafia;

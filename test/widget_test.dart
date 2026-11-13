@@ -11,6 +11,7 @@ import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/data/settings.dart';
 import 'package:party_games/main.dart';
 import 'package:party_games/mafia/mafia_game.dart';
+import 'package:party_games/screens/mafia_game_screen.dart';
 import 'package:party_games/mafia/mafia_round.dart';
 import 'package:party_games/models/game_mode.dart';
 import 'package:party_games/purchase/premium_lease.dart';
@@ -198,6 +199,18 @@ class FakeContactService implements ContactService {
 class FakeSoundService implements SoundService {
   int warnings = 0;
   int timeUps = 0;
+  int ambienceStarts = 0;
+  int ambienceStops = 0;
+  int mornings = 0;
+
+  @override
+  void startNightAmbience() => ambienceStarts++;
+
+  @override
+  void stopNightAmbience() => ambienceStops++;
+
+  @override
+  void playMorning() => mornings++;
 
   @override
   void playWarning() => warnings++;
@@ -2190,6 +2203,25 @@ void main() {
         expect(g.alive, hasLength(6));
       });
 
+      test('the doctor cannot save the same player two nights in a row', () {
+        final g = game();
+        final a = g.aliveNonMafia[0];
+        final b = g.aliveNonMafia[1];
+        expect(g.doctorChoices, contains(a));
+        g.resolveNight(victim: b, saved: a);
+        expect(g.doctorChoices, isNot(contains(a)));
+        g.resolveNight(victim: g.aliveNonMafia[1]);
+        expect(g.doctorChoices, contains(a));
+      });
+
+      test('a player marked out by mistake can be restored', () {
+        final g = game();
+        g.voteOut(0);
+        expect(g.isAlive(0), isFalse);
+        g.restore(0);
+        expect(g.isAlive(0), isTrue);
+      });
+
       test('a dead doctor saves nobody', () {
         final g = game();
         final doctor = g.round.roles.indexOf(MafiaRole.doctor);
@@ -2242,12 +2274,20 @@ void main() {
 
     /// Opens the Mafia setup, optionally switches the app's night narration
     /// off, starts the game and passes the phone round all six players.
+    setUp(() {
+      MafiaGameScreen.nightStageMinimum = Duration.zero;
+      MafiaGameScreen.detectiveResultDuration = Duration.zero;
+    });
+
     Future<List<String>> startAndReveal(
       WidgetTester tester, {
       bool appRunsNights = true,
+      SoundService sounds = const NoSoundService(),
     }) async {
       spyPhone(tester);
-      await tester.pumpWidget(app());
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), sounds: sounds),
+      );
       await openGame(tester, 'Mafia');
       await settle(tester);
       if (!appRunsNights) {
@@ -2318,6 +2358,18 @@ void main() {
       await tester.pump();
       expect(find.text('Time is up! Vote someone out.'), findsOneWidget);
 
+      // The day ends on the host's panel, where they mark who is out.
+      await tapText(tester, 'Next');
+      expect(find.text('Who is out?'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('mafiaListTile0')));
+      await tester.pump();
+      expect(find.text('Next day'), findsOneWidget);
+      await tapText(tester, 'Next day');
+      expect(find.byKey(const Key('mafiaAlive')), findsOneWidget);
+      expect(find.text('Alive: 5'), findsOneWidget);
+      await tester.pump(const Duration(minutes: 8));
+      await tapText(tester, 'Next');
+
       await tapText(tester, 'Show all roles');
       for (var i = 0; i < 6; i++) {
         expect(find.byKey(Key('mafiaListRole$i')), findsOneWidget);
@@ -2373,6 +2425,70 @@ void main() {
       );
       await tapText(tester, 'Continue');
       expect(find.byKey(const Key('mafiaTimer')), findsOneWidget);
+    });
+
+    testWidgets('the night has ambience that ends with a morning chime', (
+      tester,
+    ) async {
+      final sounds = FakeSoundService();
+      await startAndReveal(tester, sounds: sounds);
+      expect(sounds.ambienceStarts, 1);
+      expect(sounds.mornings, 0);
+      await tapText(tester, 'Continue'); // the intro
+      // Whatever the stage, keep going until the morning comes.
+      for (var s = 0; s < 6 && sounds.mornings == 0; s++) {
+        if (picks.evaluate().isNotEmpty) {
+          await tester.tap(picks.first);
+          await tester.pump();
+          await tapText(tester, 'Confirm');
+        } else {
+          await tapText(tester, 'Continue');
+        }
+      }
+      expect(sounds.ambienceStops, 1);
+      expect(sounds.mornings, 1);
+    });
+
+    testWidgets('a night stage lasts a minimum time, whoever is in', (
+      tester,
+    ) async {
+      MafiaGameScreen.nightStageMinimum = const Duration(seconds: 5);
+      await startAndReveal(tester);
+      await tapText(tester, 'Continue');
+      expect(title(tester), 'Mafia, wake up');
+      await tester.tap(picks.first);
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('mafiaConfirm')));
+      await tester.pump();
+      expect(title(tester), 'Mafia, wake up'); // too early
+      await tester.pump(const Duration(seconds: 5));
+      await tester.tap(find.byKey(const Key('mafiaConfirm')));
+      await settle(tester);
+      expect(title(tester), 'Doctor, wake up');
+    });
+
+    testWidgets('the detective result shows for a fixed time, then moves on', (
+      tester,
+    ) async {
+      MafiaGameScreen.detectiveResultDuration = const Duration(seconds: 4);
+      await startAndReveal(tester);
+      await tapText(tester, 'Continue');
+      for (final stage in ['Mafia, wake up', 'Doctor, wake up']) {
+        expect(title(tester), stage);
+        await tester.tap(picks.first);
+        await tester.pump();
+        await tapText(tester, 'Confirm');
+      }
+      await tester.tap(picks.first);
+      await tester.pump();
+      await tapText(tester, 'Confirm');
+      expect(find.byKey(const Key('mafiaCheck')), findsOneWidget);
+      expect(find.text('Continue'), findsNothing);
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.byKey(const Key('mafiaCheck')), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      await settle(tester);
+      expect(title(tester), 'Morning');
     });
 
     testWidgets('a whole game runs to a winner', (tester) async {

@@ -11,6 +11,14 @@ abstract class SoundService {
 
   /// A longer falling buzzer: "stop" (time is out).
   void playTimeUp();
+
+  /// Mafia: soft night ambience (crickets, a low drone) on a loop, until
+  /// [stopNightAmbience].
+  void startNightAmbience();
+  void stopNightAmbience();
+
+  /// Mafia: a gentle chime for the morning.
+  void playMorning();
 }
 
 class NoSoundService implements SoundService {
@@ -21,6 +29,15 @@ class NoSoundService implements SoundService {
 
   @override
   void playTimeUp() {}
+
+  @override
+  void startNightAmbience() {}
+
+  @override
+  void stopNightAmbience() {}
+
+  @override
+  void playMorning() {}
 }
 
 /// Makes the [SoundService] available to descendants.
