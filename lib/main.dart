@@ -16,6 +16,7 @@ import 'reverse/voice_service.dart';
 import 'sound/audio_sound_service.dart';
 import 'sound/sound_service.dart';
 import 'screens/home_screen.dart';
+import 'widgets/tablet_scale.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -164,7 +165,7 @@ class _PartyGamesAppState extends State<PartyGamesApp>
                   service: widget.ads,
                   child: ContentScope(
                     repository: widget.repository ?? ContentRepository(),
-                    child: child!,
+                    child: TabletScale(child: child!),
                   ),
                 ),
               ),

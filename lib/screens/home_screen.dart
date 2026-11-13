@@ -24,6 +24,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: GradientBackground(
+        maxContentWidth: 1000,
         child: SafeArea(child: _GamesTab(scrollHint: scrollHint)),
       ),
     );
@@ -171,24 +172,44 @@ class _GamesTabState extends State<_GamesTab> {
           Expanded(
             child: Listener(
               onPointerDown: (_) => _cancelScrollHint(),
-              child: GridView.count(
-                controller: _scroll,
-                crossAxisCount: 2,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 1.3,
-                children: [
-                  for (final mode in GameMode.values)
-                    _ModeCard(
-                      mode: mode,
-                      title: s.modeName(mode),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => SetupScreen(mode: mode),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final modes = GameMode.values;
+                  // Phones get two columns and scroll. Wider screens get
+                  // more columns, sized so that every game fits on screen.
+                  final columns = (constraints.maxWidth / 170).floor().clamp(
+                    2,
+                    5,
+                  );
+                  var aspect = 1.3;
+                  if (columns > 2) {
+                    final rows = (modes.length / columns).ceil();
+                    final cellWidth =
+                        (constraints.maxWidth - 14 * (columns - 1)) / columns;
+                    final cellHeight =
+                        (constraints.maxHeight - 14 * (rows - 1)) / rows;
+                    aspect = (cellWidth / cellHeight).clamp(1.0, 1.6);
+                  }
+                  return GridView.count(
+                    controller: _scroll,
+                    crossAxisCount: columns,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: aspect,
+                    children: [
+                      for (final mode in modes)
+                        _ModeCard(
+                          mode: mode,
+                          title: s.modeName(mode),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SetupScreen(mode: mode),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  );
+                },
               ),
             ),
           ),

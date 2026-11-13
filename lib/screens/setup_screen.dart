@@ -598,6 +598,7 @@ class _SetupScreenState extends State<SetupScreen> {
         ),
       ),
       body: GradientBackground(
+        maxContentWidth: 1100,
         // The illustration is part of the scrolling page, anchored under the
         // button; the name fields can make the page taller than the screen.
         // No SafeArea at the top: the scroll view must reach the screen edge,
@@ -609,6 +610,138 @@ class _SetupScreenState extends State<SetupScreen> {
           bottom: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final card = GlassCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.group_outlined),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _isTeamGame ? s['teams'] : s['players'],
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ),
+                        GlassIconButton(
+                          icon: Icons.remove,
+                          tooltip: '−',
+                          onPressed: _players > mode.minPlayers
+                              ? () => _changePlayers(-1)
+                              : null,
+                        ),
+                        SizedBox(
+                          width: 48,
+                          child: Text(
+                            '$_players',
+                            key: const Key('playersCount'),
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        GlassIconButton(
+                          icon: Icons.add,
+                          tooltip: '+',
+                          onPressed:
+                              _players <
+                                  (_isTeamGame
+                                      ? _maxTeams
+                                      : SetupScreen.maxPlayers)
+                              ? () => _changePlayers(1)
+                              : null,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    for (var i = 0; i < _players; i++) ...[
+                      if (i > 0) const SizedBox(height: 10),
+                      if (_isTeamGame)
+                        _teamBlock(s, theme, i)
+                      else
+                        _NameField(
+                          controller: _names[i],
+                          hint: _defaultName(s, i + 1),
+                          maxLength: _maxNameLength,
+                          isLast: i == _players - 1,
+                        ),
+                    ],
+                    ..._modeOptions(s, theme),
+                  ],
+                ),
+              );
+              final header = <Widget>[
+                _ModeBlob(mode: mode),
+                const SizedBox(height: 14),
+                _ModeTitle(title: s.modeName(mode)),
+                const SizedBox(height: 6),
+                Text(
+                  s['${mode.id}_desc'],
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ];
+              final startArea = <Widget>[
+                GradientButton(
+                  label: s['start'],
+                  icon: Icons.play_arrow_rounded,
+                  onPressed: _start,
+                ),
+                // Banner under the button; takes no space until an ad has
+                // loaded.
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Center(child: AdScope.of(context).buildBanner()),
+                ),
+              ];
+
+              // Wide and short (a tablet on its side): the picture and the
+              // button on the left, the options on the right, so nothing
+              // needs a long scroll.
+              if (constraints.maxWidth >= 720 &&
+                  constraints.maxWidth > constraints.maxHeight * 1.2) {
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    28,
+                    MediaQuery.paddingOf(context).top,
+                    28,
+                    12,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ...header,
+                                const SizedBox(height: 22),
+                                ...startArea,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 28),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: card,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
               final backdropHeight = MediaQuery.sizeOf(context).height * 0.36;
               return SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -634,97 +767,11 @@ class _SetupScreenState extends State<SetupScreen> {
                         ),
                         child: Column(
                           children: [
-                            _ModeBlob(mode: mode),
-                            const SizedBox(height: 14),
-                            _ModeTitle(title: s.modeName(mode)),
-                            const SizedBox(height: 6),
-                            Text(
-                              s['${mode.id}_desc'],
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.8),
-                              ),
-                            ),
+                            ...header,
                             const SizedBox(height: 24),
-                            GlassCard(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.group_outlined),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          _isTeamGame
-                                              ? s['teams']
-                                              : s['players'],
-                                          style: theme.textTheme.titleMedium,
-                                        ),
-                                      ),
-                                      GlassIconButton(
-                                        icon: Icons.remove,
-                                        tooltip: '−',
-                                        onPressed: _players > mode.minPlayers
-                                            ? () => _changePlayers(-1)
-                                            : null,
-                                      ),
-                                      SizedBox(
-                                        width: 48,
-                                        child: Text(
-                                          '$_players',
-                                          key: const Key('playersCount'),
-                                          textAlign: TextAlign.center,
-                                          style: theme.textTheme.headlineSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                        ),
-                                      ),
-                                      GlassIconButton(
-                                        icon: Icons.add,
-                                        tooltip: '+',
-                                        onPressed:
-                                            _players <
-                                                (_isTeamGame
-                                                    ? _maxTeams
-                                                    : SetupScreen.maxPlayers)
-                                            ? () => _changePlayers(1)
-                                            : null,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  for (var i = 0; i < _players; i++) ...[
-                                    if (i > 0) const SizedBox(height: 10),
-                                    if (_isTeamGame)
-                                      _teamBlock(s, theme, i)
-                                    else
-                                      _NameField(
-                                        controller: _names[i],
-                                        hint: _defaultName(s, i + 1),
-                                        maxLength: _maxNameLength,
-                                        isLast: i == _players - 1,
-                                      ),
-                                  ],
-                                  ..._modeOptions(s, theme),
-                                ],
-                              ),
-                            ),
+                            card,
                             const SizedBox(height: 22),
-                            GradientButton(
-                              label: s['start'],
-                              icon: Icons.play_arrow_rounded,
-                              onPressed: _start,
-                            ),
-                            // Banner under the button; takes no space until
-                            // an ad has loaded.
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Center(
-                                child: AdScope.of(context).buildBanner(),
-                              ),
-                            ),
+                            ...startArea,
                           ],
                         ),
                       ),

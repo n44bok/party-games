@@ -5,14 +5,20 @@ import 'package:flutter/material.dart';
 /// With [dark] it is nearly black with a pink haze in the bottom-right corner,
 /// used by the game screen.
 class GradientBackground extends StatelessWidget {
-  const GradientBackground({super.key, required this.child, this.dark = false});
+  const GradientBackground({
+    super.key,
+    required this.child,
+    this.dark = false,
+    this.maxContentWidth = defaultMaxContentWidth,
+  });
 
   final Widget child;
   final bool dark;
 
-  /// On tablets (and phones in landscape) the content stays a phone-sized
-  /// column in the middle; the backdrop still fills the whole screen.
-  static const maxContentWidth = 600.0;
+  /// In landscape the content stays a column in the middle instead of
+  /// stretching across the screen; the backdrop still fills all of it.
+  static const defaultMaxContentWidth = 600.0;
+  final double maxContentWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +51,10 @@ class GradientBackground extends StatelessWidget {
             ),
           LayoutBuilder(
             builder: (context, constraints) {
-              final side = ((constraints.maxWidth - maxContentWidth) / 2)
-                  .clamp(0.0, double.infinity);
+              final side = ((constraints.maxWidth - maxContentWidth) / 2).clamp(
+                0.0,
+                double.infinity,
+              );
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: side),
                 child: child,
