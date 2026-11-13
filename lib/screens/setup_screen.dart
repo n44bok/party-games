@@ -996,12 +996,26 @@ class _PartyBackdrop extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ).createShader(rect),
-        child: Image.asset(
-          'assets/images/party_toast.jpg',
-          fit: BoxFit.cover,
-          alignment: Alignment.bottomCenter,
-          // Decorative only; never break the screen over a missing image.
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        // The sides fade out too, so on wide screens the picture does not end
+        // in hard vertical edges.
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (rect) => const LinearGradient(
+            colors: [
+              Colors.transparent,
+              Colors.black,
+              Colors.black,
+              Colors.transparent,
+            ],
+            stops: [0.0, 0.15, 0.85, 1.0],
+          ).createShader(rect),
+          child: Image.asset(
+            'assets/images/party_toast.jpg',
+            fit: BoxFit.cover,
+            alignment: Alignment.bottomCenter,
+            // Decorative only; never break the screen over a missing image.
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
         ),
       ),
     );

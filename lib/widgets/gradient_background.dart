@@ -10,6 +10,10 @@ class GradientBackground extends StatelessWidget {
   final Widget child;
   final bool dark;
 
+  /// On tablets (and phones in landscape) the content stays a phone-sized
+  /// column in the middle; the backdrop still fills the whole screen.
+  static const maxContentWidth = 600.0;
+
   @override
   Widget build(BuildContext context) {
     final colors = dark
@@ -39,7 +43,16 @@ class GradientBackground extends StatelessWidget {
                 ),
               ),
             ),
-          child,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final side = ((constraints.maxWidth - maxContentWidth) / 2)
+                  .clamp(0.0, double.infinity);
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: side),
+                child: child,
+              );
+            },
+          ),
         ],
       ),
     );
