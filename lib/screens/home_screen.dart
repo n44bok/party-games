@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../ads/ad_service.dart';
+import '../data/settings.dart';
 import '../data/strings.dart';
+import '../engagement/engagement_service.dart';
 import '../models/game_mode.dart';
 import '../widgets/glass.dart';
 import '../widgets/rules_popover.dart';
@@ -97,6 +99,18 @@ class _GamesTabState extends State<_GamesTab> {
     _hintCancelled = true;
     _hintTimer?.cancel();
     if (_hinting && _scroll.hasClients) _scroll.jumpTo(_scroll.offset);
+  }
+
+  /// Back from a game: a good moment, once in a while, to ask for a rating.
+  /// The store shows its own sheet and decides whether it appears at all.
+  Future<void> _maybeAskForReview() async {
+    final settings = SettingsScope.read(context);
+    if (!settings.shouldAskForReview) return;
+    final engagement = EngagementScope.read(context);
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted || !settings.shouldAskForReview) return;
+    await settings.markReviewAsked();
+    await engagement.requestReview();
   }
 
   @override
@@ -201,11 +215,14 @@ class _GamesTabState extends State<_GamesTab> {
                         _ModeCard(
                           mode: mode,
                           title: s.modeName(mode),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => SetupScreen(mode: mode),
-                            ),
-                          ),
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => SetupScreen(mode: mode),
+                              ),
+                            );
+                            if (mounted) _maybeAskForReview();
+                          },
                         ),
                     ],
                   );

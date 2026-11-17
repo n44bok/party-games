@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../ads/ad_service.dart';
 import '../data/settings.dart';
 import '../data/strings.dart';
+import '../engagement/engagement_service.dart';
 import '../widgets/glass.dart';
 import '../widgets/gradient_background.dart';
 import 'contact_screen.dart';
@@ -100,6 +101,36 @@ class SettingsScreen extends StatelessWidget {
                 description: s['contact_card_desc'],
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const ContactScreen()),
+                ),
+              ),
+              const SizedBox(height: 12),
+              _NavCard(
+                key: const Key('rateCard'),
+                icon: Icons.star_outline_rounded,
+                title: s['rate_title'],
+                description: s['rate_desc'],
+                onTap: EngagementScope.read(context).openStorePage,
+              ),
+              const SizedBox(height: 12),
+              Builder(
+                builder: (context) => _NavCard(
+                  key: const Key('shareCard'),
+                  icon: Icons.ios_share_rounded,
+                  title: s['share_tooltip'],
+                  description: s['share_desc'],
+                  onTap: () {
+                    // iPad points the share sheet at this card.
+                    final box = context.findRenderObject() as RenderBox?;
+                    final url = shareUrl;
+                    EngagementScope.read(context).share(
+                      url == null
+                          ? s['share_text']
+                          : '${s['share_text']}\n$url',
+                      origin: box == null
+                          ? null
+                          : box.localToGlobal(Offset.zero) & box.size,
+                    );
+                  },
                 ),
               ),
               if (donationsVisible) ...[

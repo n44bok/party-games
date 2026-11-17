@@ -9,6 +9,7 @@ import 'package:party_games/contact/captcha.dart';
 import 'package:party_games/contact/contact_service.dart';
 import 'package:party_games/data/content_repository.dart';
 import 'package:party_games/data/settings.dart';
+import 'package:party_games/engagement/engagement_service.dart';
 import 'package:party_games/main.dart';
 import 'package:party_games/mafia/mafia_game.dart';
 import 'package:party_games/screens/mafia_game_screen.dart';
@@ -233,6 +234,22 @@ class FlakyRepository extends FakeRepository {
 }
 
 Widget app() => PartyGamesApp(repository: FakeRepository());
+
+/// Records what the app asked the store / share sheet to do.
+class FakeEngagement implements EngagementService {
+  int reviews = 0;
+  int storePages = 0;
+  final shared = <String>[];
+
+  @override
+  Future<void> requestReview() async => reviews++;
+
+  @override
+  Future<void> openStorePage() async => storePages++;
+
+  @override
+  Future<void> share(String text, {Rect? origin}) async => shared.add(text);
+}
 
 /// A tiny 16-bit mono WAV whose samples count up from [base], so that a
 /// reversed copy is easy to tell from the original. [extraChunk] adds an
@@ -643,6 +660,102 @@ void main() {
     await tester.tapAt(const Offset(5, 400));
     await settle(tester);
     expect(find.textContaining('Change Type'), findsNothing);
+  });
+
+  group('rating and sharing', () {
+    test(
+      'a rating is asked after a few games, rarely, and never nags',
+      () async {
+        var now = DateTime(2026, 1, 1);
+        final settings = SettingsController(clock: () => now);
+        expect(settings.shouldAskForReview, isFalse);
+        for (var i = 0; i < SettingsController.gamesBeforeReview; i++) {
+          expect(settings.shouldAskForReview, isFalse);
+          await settings.recordGameStarted();
+        }
+        expect(settings.shouldAskForReview, isTrue);
+
+        await settings.markReviewAsked();
+        expect(settings.shouldAskForReview, isFalse); // not again right away
+        now = now.add(const Duration(days: 30));
+        expect(settings.shouldAskForReview, isFalse);
+        now = now.add(const Duration(days: 61));
+        expect(settings.shouldAskForReview, isTrue);
+
+        await settings.markReviewAsked();
+        now = now.add(const Duration(days: 400));
+        expect(settings.shouldAskForReview, isFalse); // twice is the limit
+      },
+    );
+
+    test('the counters survive a restart', () async {
+      SharedPreferences.setMockInitialValues({});
+      final first = await SettingsController.load();
+      for (var i = 0; i < SettingsController.gamesBeforeReview; i++) {
+        await first.recordGameStarted();
+      }
+      await first.markReviewAsked();
+      final second = await SettingsController.load();
+      expect(second.shouldAskForReview, isFalse);
+      SharedPreferences.setMockInitialValues({'gamesPlayed': 3});
+      expect((await SettingsController.load()).shouldAskForReview, isTrue);
+    });
+
+    testWidgets('the rating is asked on the home screen after the third game', (
+      tester,
+    ) async {
+      phone(tester);
+      final engagement = FakeEngagement();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), engagement: engagement),
+      );
+      for (var game = 1; game <= SettingsController.gamesBeforeReview; game++) {
+        expect(engagement.reviews, 0, reason: 'game $game');
+        // The previous game's routes may still be fading out; the card
+        // on the home screen is the first of the matches.
+        final card = find.text('Would You Rather').first;
+        await tester.ensureVisible(card);
+        await tester.pump();
+        await tester.tap(card);
+        await settle(tester);
+        await startGame(tester);
+        await loaded(tester);
+        // Back out of the game and the setup, as a player would.
+        tester
+            .state<NavigatorState>(find.byType(Navigator).first)
+            .popUntil((route) => route.isFirst);
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(seconds: 1));
+        await settle(tester);
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(engagement.reviews, 1);
+    });
+
+    testWidgets('settings can share the app and open its store page', (
+      tester,
+    ) async {
+      phone(tester);
+      final engagement = FakeEngagement();
+      await tester.pumpWidget(
+        PartyGamesApp(repository: FakeRepository(), engagement: engagement),
+      );
+      await tester.tap(find.byTooltip('Settings'));
+      await settle(tester);
+
+      await tester.ensureVisible(find.byKey(const Key('shareCard')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('shareCard')));
+      await tester.pump();
+      expect(engagement.shared, hasLength(1));
+      expect(engagement.shared.single, contains('Party Games'));
+
+      await tester.ensureVisible(find.byKey(const Key('rateCard')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('rateCard')));
+      await tester.pump();
+      expect(engagement.storePages, 1);
+    });
   });
 
   group('settings', () {

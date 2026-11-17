@@ -16,12 +16,18 @@ class SettingsController extends ChangeNotifier {
     bool haptics = true,
     DateTime? premiumUntil,
     bool timeWarning = true,
+    int gamesPlayed = 0,
+    int reviewAsks = 0,
+    DateTime? lastReviewAsk,
     DateTime Function()? clock,
   }) : _prefs = prefs,
        _locale = locale,
        _haptics = haptics,
        _premiumUntil = premiumUntil,
        _timeWarning = timeWarning,
+       _gamesPlayed = gamesPlayed,
+       _reviewAsks = reviewAsks,
+       _lastReviewAsk = lastReviewAsk,
        _clock = clock ?? DateTime.now {
     _premiumActive = _isPremiumNow;
   }
@@ -30,6 +36,18 @@ class SettingsController extends ChangeNotifier {
   static const _hapticsKey = 'haptics';
   static const _premiumUntilKey = 'premiumUntil';
   static const _timeWarningKey = 'timeWarning';
+  static const _gamesPlayedKey = 'gamesPlayed';
+  static const _reviewAsksKey = 'reviewAsks';
+  static const _lastReviewAskKey = 'lastReviewAsk';
+
+  /// Games to play before the first rating request.
+  static const gamesBeforeReview = 3;
+
+  /// The rating request is shown at most this many times, ever.
+  static const maxReviewAsks = 2;
+
+  /// And at least this long apart.
+  static const reviewAskGap = Duration(days: 90);
 
   /// Longest own Spy word.
   static const maxSpyWordLength = 30;
@@ -46,6 +64,9 @@ class SettingsController extends ChangeNotifier {
         haptics: prefs.getBool(_hapticsKey) ?? true,
         premiumUntil: _readDate(prefs.getInt(_premiumUntilKey)),
         timeWarning: prefs.getBool(_timeWarningKey) ?? true,
+        gamesPlayed: prefs.getInt(_gamesPlayedKey) ?? 0,
+        reviewAsks: prefs.getInt(_reviewAsksKey) ?? 0,
+        lastReviewAsk: _readDate(prefs.getInt(_lastReviewAskKey)),
       );
     } catch (e) {
       debugPrint('Could not load settings, using defaults: $e');
@@ -64,6 +85,9 @@ class SettingsController extends ChangeNotifier {
   DateTime? _premiumUntil;
   late bool _premiumActive;
   bool _timeWarning;
+  int _gamesPlayed;
+  int _reviewAsks;
+  DateTime? _lastReviewAsk;
 
   /// `null` means "follow the system language".
   Locale? get locale => _locale;
@@ -100,6 +124,34 @@ class SettingsController extends ChangeNotifier {
     if (now == _premiumActive) return;
     _premiumActive = now;
     notifyListeners();
+  }
+
+  /// Counts a started game. Not a [notifyListeners] event: nothing on screen
+  /// depends on it.
+  Future<void> recordGameStarted() async {
+    _gamesPlayed++;
+    await _prefs?.setInt(_gamesPlayedKey, _gamesPlayed);
+  }
+
+  /// Whether it is a good moment to ask for a store rating: after a few
+  /// games, never more than twice, and not within three months of the last
+  /// time.
+  bool get shouldAskForReview {
+    if (_gamesPlayed < gamesBeforeReview || _reviewAsks >= maxReviewAsks) {
+      return false;
+    }
+    final last = _lastReviewAsk;
+    return last == null || _clock().difference(last) >= reviewAskGap;
+  }
+
+  Future<void> markReviewAsked() async {
+    _reviewAsks++;
+    _lastReviewAsk = _clock();
+    await _prefs?.setInt(_reviewAsksKey, _reviewAsks);
+    await _prefs?.setInt(
+      _lastReviewAskKey,
+      _lastReviewAsk!.millisecondsSinceEpoch,
+    );
   }
 
   /// Whether Spy warns the players shortly before the time runs out.

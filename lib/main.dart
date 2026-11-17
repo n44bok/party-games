@@ -9,6 +9,7 @@ import 'data/content_repository.dart';
 import 'data/content_scope.dart';
 import 'data/settings.dart';
 import 'data/strings.dart';
+import 'engagement/engagement_service.dart';
 import 'purchase/purchase_service.dart';
 import 'purchase/store_purchase_service.dart';
 import 'reverse/record_voice_service.dart';
@@ -31,6 +32,7 @@ Future<void> main() async {
       voice: RecordVoiceService(),
       purchases: purchases,
       contact: defaultContactService(),
+      engagement: const StoreEngagementService(),
       scrollHint: true,
     ),
   );
@@ -51,6 +53,7 @@ class PartyGamesApp extends StatefulWidget {
     this.sounds = const NoSoundService(),
     this.voice = const NoVoiceService(),
     this.purchases,
+    this.engagement = const NoEngagementService(),
     this.contact = const NoContactService(),
     this.scrollHint = false,
   });
@@ -74,6 +77,9 @@ class PartyGamesApp extends StatefulWidget {
   /// Where the "Write to us" form sends its messages; nowhere unless
   /// provided.
   final ContactService contact;
+
+  /// Store rating request and sharing; does nothing unless provided.
+  final EngagementService engagement;
 
   /// The App Store / Google Play for Premium; no store unless provided.
   final PurchaseService? purchases;
@@ -161,11 +167,14 @@ class _PartyGamesAppState extends State<PartyGamesApp>
               service: _purchases,
               child: ContactScope(
                 service: widget.contact,
-                child: AdScope(
-                  service: widget.ads,
-                  child: ContentScope(
-                    repository: widget.repository ?? ContentRepository(),
-                    child: TabletScale(child: child!),
+                child: EngagementScope(
+                  service: widget.engagement,
+                  child: AdScope(
+                    service: widget.ads,
+                    child: ContentScope(
+                      repository: widget.repository ?? ContentRepository(),
+                      child: TabletScale(child: child!),
+                    ),
                   ),
                 ),
               ),

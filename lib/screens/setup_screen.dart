@@ -186,6 +186,7 @@ class _SetupScreenState extends State<SetupScreen> {
             ? _defaultName(s, i + 1)
             : _names[i].text.trim(),
     ];
+    SettingsScope.read(context).recordGameStarted();
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => switch (widget.mode) {
